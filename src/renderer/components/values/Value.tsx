@@ -86,6 +86,7 @@ export const useStyles = makeStyles((theme: Theme) =>
       display: 'flex',
       flexFlow: 'column',
       width: 0, // hack
+      marginBottom: 0,
       '& .MuiInputBase-root': {
         display: 'flex',
         flexFlow: 'column',
@@ -153,12 +154,21 @@ export const Value = React.memo((props: ValueProps) => {
   React.useEffect(() => {
     const editor = editorRef.current;
     if (editor) {
-      if (viewType === 'text' || viewType === 'binary') {
-        editor.setOption('readOnly', false);
-        editor.setOption('mode', null);
-      } else {
-        editor.setOption('readOnly', true);
-        editor.setOption('mode', 'javascript');
+      switch (viewType) {
+        case 'text':
+          editor.setOption('readOnly', false);
+          editor.setOption('mode', null);
+          break;
+        case 'json':
+          editor.setOption('readOnly', false);
+          editor.setOption('mode', 'javascript');
+          break;
+        case 'binary':
+          editor.setOption('mode', null);
+          editor.setOption('readOnly', true);
+          break;
+        default:
+        // Ignore
       }
     }
   }, [viewType]);

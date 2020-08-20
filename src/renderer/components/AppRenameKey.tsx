@@ -46,24 +46,27 @@ export const AppRenameKey = React.memo((props: AppRenameProps) => {
 
   React.useEffect(() => {
     setKey(object.key);
-  }, []);
+  }, [setKey, object.key]);
 
-  const handleChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
-    setKey(ev.target.value);
-  };
+  const handleChange = React.useCallback(
+    (ev: React.ChangeEvent<HTMLInputElement>) => {
+      setKey(ev.target.value);
+    },
+    [setKey]
+  );
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setRenameDialogVisible(false);
-  };
+  }, [setRenameDialogVisible]);
 
-  const handleSubmit = () => {
+  const handleSubmit = React.useCallback(() => {
     if (!key) {
       showMessage('error', 'Key should not be empty.');
       return false;
     }
     renameObjectKey(object, key);
     handleClose();
-  };
+  }, [key, showMessage, renameObjectKey, object, handleClose]);
 
   return (
     <div className={classes.appRenameKeyRoot}>

@@ -27,3 +27,11 @@ export const DIMENSION_APPRESIZER_HANDLER_SIZE = 4;
 
 export const REACTDND_ITEMTYPE_SESSIONTAB = 'session-tab';
 export const REACTDND_ITEMTYPE_TAB = 'tab';
+
+export const DEFAULT_SCAN_COUNT = 1000;
+export const DEFAULT_LRANGE_COUNT = 200;
+export const DEFAULT_HSCAN_COUNT = 200;
+export const DEFAULT_SSCAN_COUNT = 200;
+export const DEFAULT_ZSCAN_COUNT = 200;
+
+export const DEFAULT_MATCH_STR = '*';

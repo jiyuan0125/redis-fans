@@ -7,7 +7,7 @@ import {
   TextField,
 } from '@material-ui/core';
 import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
-import { DataObject, Settings, MessageType } from '@src/types';
+import { Settings, MessageType, SetDataObject, SetValueType } from '@src/types';
 import { resetFormData } from '@src/utils/common';
 import React from 'react';
 import { useImmer } from 'use-immer';
@@ -15,6 +15,7 @@ import _ from 'lodash';
 import { Rows, ColumnAlign } from './Rows';
 import { Value } from './Value';
 import { DIMENSION_ROWS_WIDTH_MAXSIZE } from '@src/constants';
+import { Scanner } from './Scaner';
 
 export const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -89,20 +90,26 @@ const initialFormData = {
 };
 
 interface SetValueProp {
-  object: DataObject<'set'>;
-  addSetValue: (object: DataObject, value: string) => void;
+  object: SetDataObject;
+  addSetValue: (object: SetDataObject, value: string) => void;
   updateSetValue: (
-    object: DataObject,
+    object: SetDataObject,
     oldValue: string,
     newValue: string
   ) => void;
-  deleteSetValue: (object: DataObject, value: string) => void;
+  deleteSetValue: (object: SetDataObject, value: string) => void;
   appSettings: Settings;
   refreshIndicator: number;
   showMessage: (
     type: MessageType,
     content: string,
     description?: string
+  ) => void;
+  fetchSetValues: (
+    object: SetDataObject,
+    cursor: number,
+    match: string,
+    count: number
   ) => void;
 }
 
@@ -115,6 +122,7 @@ export const SetValue = React.memo((props: SetValueProp) => {
     appSettings,
     refreshIndicator,
     showMessage,
+    fetchSetValues,
   } = props;
   const [selected, setSelected] = React.useState<number>(-1);
   const classes = useStyles();
@@ -125,70 +133,88 @@ export const SetValue = React.memo((props: SetValueProp) => {
   );
   const [value, setValue] = React.useState('');
 
-  const data = (object.value || []).slice().sort((a, b) => {
-    return a.localeCompare(b);
-  }) as string[];
+  const data = React.useMemo(
+    () =>
+      (object.values || ([] as SetValueType[])).slice().sort((a, b) => {
+        return a.value.localeCompare(b.value);
+      }) as SetValueType[],
+    [object.values]
+  );
 
   React.useEffect(() => {
     if (typeof selected === 'number') {
-      if (selected > -1) {
-        setValue(data[selected]);
+      if (selected !== -1) {
+        setValue(data[selected].value);
       }
     }
   }, [selected, data, refreshIndicator]);
 
-  const handleAddRow = () => {
+  const handleAddRow = React.useCallback(() => {
     setAddRowDialogVisible(true);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCancel = () => {
+  const handleAddRowCancel = React.useCallback(() => {
     setAddRowDialogVisible(false);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCommit = () => {
+  const handleAddRowCommit = React.useCallback(() => {
     addSetValue(object, formData.value);
     updateFormData((draft) => {
       resetFormData(draft, initialFormData);
     });
     handleAddRowCancel();
-  };
+  }, [
+    addSetValue,
+    object,
+    formData,
+    updateFormData,
+    resetFormData,
+    initialFormData,
+    handleAddRowCancel,
+  ]);
 
-  const handleDeleteRow = (selected: string | number) => {
-    if (typeof selected === 'number') {
-      deleteSetValue(object, data[selected]);
-    }
-  };
+  const handleDeleteRow = React.useCallback(
+    (selected: number) => {
+      deleteSetValue(object, data[selected].value);
+    },
+    [deleteSetValue, object, data]
+  );
 
-  const handleSelectRow = (selected: string | number) => {
-    if (typeof selected === 'number') {
+  const handleSelectRow = React.useCallback(
+    (selected: number) => {
       setSelected(selected);
+    },
+    [setSelected, selected]
+  );
+
+  const handleChange = React.useCallback(
+    (ev: React.ChangeEvent<{ value: string }>, key: string) => {
+      ev.persist();
+      updateFormData((draft) => {
+        draft[key] = ev.target.value;
+      });
+    },
+    [updateFormData]
+  );
+
+  const handleValueChange = React.useCallback(
+    (value: string) => {
+      setValue(value);
+    },
+    [setValue]
+  );
+
+  const handleSaveValue = React.useCallback(() => {
+    if (selected !== -1) {
+      updateSetValue(object, data[selected].value, value);
     }
-  };
-
-  const handleChange = (
-    ev: React.ChangeEvent<{ value: string }>,
-    key: string
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[key] = ev.target.value;
-    });
-  };
-
-  const handleValueChange = (value: string) => {
-    setValue(value);
-  };
-
-  const handleSaveValue = () => {
-    if (selected > -1) {
-      updateSetValue(props.object, data[selected], value);
-    }
-  };
+  }, [selected, updateSetValue, object, data, value]);
 
   const columns = [
     {
+      key: 'value',
       label: 'VALUES',
-      width: 300,
+      flex: 1,
       align: 'left' as ColumnAlign,
     },
   ];
@@ -196,18 +222,23 @@ export const SetValue = React.memo((props: SetValueProp) => {
   return (
     <div className={classes.setValueRoot}>
       <div className={classes.left} style={{ width: rowsSize }}>
+        <Scanner<SetDataObject>
+          object={object}
+          onFatchValues={fetchSetValues}
+          scanBtnLabel="sscan"
+        />
         <Rows
           onAddRow={handleAddRow}
           onDeleteRow={handleDeleteRow}
           onSelect={handleSelectRow}
           primaryKey="value"
-          isList
-          data={data}
+          rows={data}
           selected={selected}
           columns={columns}
           size={rowsSize}
           onSizeChange={setRowsSize}
           appSettings={appSettings}
+          total={object.total}
         />
       </div>
       <div className={classes.right}>

@@ -116,7 +116,7 @@ export const AppSessionMain = React.memo(
       renameObjectKey,
       expireObject,
       deleteObject,
-      updateObjectValue,
+      updateStringValue,
       addHashField,
       updateHashField,
       updateHashValue,
@@ -133,9 +133,12 @@ export const AppSessionMain = React.memo(
       swapTab,
       activeObject,
       updateTabTemporary,
-      //updateObjectOpenness,
+      fetchListValues,
+      fetchHashValues,
+      fetchSetValues,
+      fetchZsetValues,
     } = useService({ session, useRedisHook, useSessionHook, useGlobalHook });
-    const { showMenu, rendererMenu } = useAppTabContextMenu({
+    const { showMenu } = useAppTabContextMenu({
       deleteTab,
       deleteOtherTabs,
       deleteTabsToTheRight,
@@ -147,13 +150,19 @@ export const AppSessionMain = React.memo(
       loadServerConfig();
     }, []);
 
-    const handleTabChange = (_ev: React.ChangeEvent<{}>, tabId: string) => {
-      setActiveTabId(tabId);
-    };
+    const handleTabChange = React.useCallback(
+      (_ev: React.ChangeEvent<{}>, tabId: string) => {
+        setActiveTabId(tabId);
+      },
+      [setActiveTabId]
+    );
 
-    const handleTabClose = (_ev: React.MouseEvent, tab: Tab) => {
-      deleteTab(tab);
-    };
+    const handleTabClose = React.useCallback(
+      (_ev: React.MouseEvent, tab: Tab) => {
+        deleteTab(tab);
+      },
+      [deleteTab]
+    );
 
     const renderPanel = (session: Session, tab: Tab) => {
       switch (tab.type) {
@@ -166,7 +175,7 @@ export const AppSessionMain = React.memo(
               renameObjectKey={renameObjectKey}
               expireObject={expireObject}
               deleteObject={deleteObject}
-              updateObjectValue={updateObjectValue}
+              updateStringValue={updateStringValue}
               addHashField={addHashField}
               updateHashField={updateHashField}
               updateHashValue={updateHashValue}
@@ -182,6 +191,10 @@ export const AppSessionMain = React.memo(
               deleteZsetValue={deleteZsetValue}
               appSettings={appSettings}
               showMessage={showMessage}
+              fetchListValues={fetchListValues}
+              fetchHashValues={fetchHashValues}
+              fetchSetValues={fetchSetValues}
+              fetchZsetValues={fetchZsetValues}
             />
           );
         case 'terminal':
@@ -354,7 +367,6 @@ export const AppSessionMain = React.memo(
                 />
               ))}
             </AppTabs>
-            {rendererMenu()}
           </AppBar>
           {session.tabs.map((tab) => (
             <AppTabPanel key={tab.id} value={tab.id} activeValue={activeTabId}>

@@ -22,15 +22,14 @@ export const createSession = (conn: Connection): Session => {
 
 export const convertValue = (
   value: string | undefined,
-  viewType: ViewAs,
-  compact: boolean = false
+  viewType: ViewAs
 ): any => {
   if (value === undefined) return '';
   switch (viewType) {
     case 'text':
       return value;
     case 'json':
-      return convertValueToJson(value, compact);
+      return convertValueToJson(value, false);
     case 'binary':
       return convertValueToBinary(value);
   }
@@ -70,21 +69,6 @@ export const resetFormData = (
       }
     }
   });
-};
-
-export const convertHashToArray = (value: Record<string, any> | undefined) => {
-  const res = [] as Record<string, any>[];
-
-  if (!value) return res;
-  Object.keys(value).map((key) => {
-    const one = {
-      key,
-      value: value[key],
-    };
-    res.push(one);
-  });
-
-  return res;
 };
 
 export const areEqualShallow = (a: object, b: object) => {

@@ -1,5 +1,5 @@
 import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
-import { DataObject, Settings, MessageType } from '@src/types';
+import { Settings, MessageType, StringDataObject } from '@src/types';
 import React from 'react';
 import _ from 'lodash';
 import { Value } from './Value';
@@ -29,8 +29,8 @@ export const useStyles = makeStyles((theme: Theme) =>
 );
 
 interface StringValueProp {
-  object: DataObject<'string'>;
-  updateObjectValue: (object: DataObject, value: string) => void;
+  object: StringDataObject;
+  updateStringValue: (object: StringDataObject, value: string) => void;
   appSettings: Settings;
   refreshIndicator: number;
   showMessage: (
@@ -43,7 +43,7 @@ interface StringValueProp {
 export const StringValue = React.memo((props: StringValueProp) => {
   const {
     object,
-    updateObjectValue,
+    updateStringValue,
     appSettings,
     refreshIndicator,
     showMessage,
@@ -53,16 +53,19 @@ export const StringValue = React.memo((props: StringValueProp) => {
   const rootDOMRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    setValue(props.object.value);
-  }, [props.object.value, refreshIndicator]);
+    setValue(object.value);
+  }, [object.value, refreshIndicator]);
 
-  const handleValueChange = (value: string) => {
-    setValue(value);
-  };
+  const handleValueChange = React.useCallback(
+    (value: string) => {
+      setValue(value);
+    },
+    [setValue]
+  );
 
-  const handleSaveValue = () => {
-    updateObjectValue(props.object, value!);
-  };
+  const handleSaveValue = React.useCallback(() => {
+    updateStringValue(object, value);
+  }, [updateStringValue, object, value]);
 
   return (
     <div ref={rootDOMRef} className={classes.stringValueRoot}>

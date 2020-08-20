@@ -133,7 +133,6 @@ export interface AppLeftSideBarProps {
   advNameSpaceSeparator: string;
   activeObject?: DataObject;
   deleteObject: (object: DataObject) => void;
-  //updateObjectOpenness: (object: DataObject, isOpen: boolean) => void;
 }
 
 export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
@@ -166,48 +165,57 @@ export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
 
   const classes = useStyles(props);
 
-  const handleOpenTerminal = (temporary: boolean) => {
-    if (isMac) {
-      const nodeExists = fs.existsSync('/usr/local/bin/node');
-      if (!nodeExists) {
-        const result = remote.dialog.showMessageBoxSync(browserWindow, {
-          type: 'error',
-          message: 'Node command not found in your system.',
-          buttons: ['Ok', 'Download'],
-        });
-        if (result === 1) {
-          shell.openExternal('https://nodejs.org/en/download/');
+  const handleOpenTerminal = React.useCallback(
+    (temporary: boolean) => {
+      if (isMac) {
+        const nodeExists = fs.existsSync('/usr/local/bin/node');
+        if (!nodeExists) {
+          const result = remote.dialog.showMessageBoxSync(browserWindow, {
+            type: 'error',
+            message: 'Node command not found in your system.',
+            buttons: ['Ok', 'Download'],
+          });
+          if (result === 1) {
+            shell.openExternal('https://nodejs.org/en/download/');
+          }
+          return;
         }
-        return;
       }
-    }
-    addTerminalTab(temporary);
-  };
+      addTerminalTab(temporary);
+    },
+    [addTerminalTab]
+  );
 
-  const handleOpenLuaEditor = (temporary: boolean) => {
-    addLuaEditorTab(temporary);
-  };
+  const handleOpenLuaEditor = React.useCallback(
+    (temporary: boolean) => {
+      addLuaEditorTab(temporary);
+    },
+    [addLuaEditorTab]
+  );
 
-  const handleAddObject = () => {
+  const handleAddObject = React.useCallback(() => {
     setAppAddObjectDialogVisible(true);
-  };
+  }, [setAppAddObjectDialogVisible]);
 
-  const handleRefresh = () => {
+  const handleRefresh = React.useCallback(() => {
     loadObjects();
     setLeftSideBarVisible(true);
-  };
+  }, [loadObjects, setLeftSideBarVisible]);
 
-  const handleToggleLeftSideBar = () => {
+  const handleToggleLeftSideBar = React.useCallback(() => {
     setLeftSideBarVisible(!leftSideBarVisible);
-  };
+  }, [setLeftSideBarVisible, leftSideBarVisible]);
 
-  const handleChangeDb = (
-    ev: React.ChangeEvent<{ name?: string; value: unknown }>
-  ) => {
-    selectDb(ev.target.value as string);
-  };
+  const handleChangeDb = React.useCallback(
+    (ev: React.ChangeEvent<{ name?: string; value: unknown }>) => {
+      selectDb(ev.target.value as string);
+    },
+    [selectDb]
+  );
 
-  const dbs = _.range(parseInt(serverConfig.databases));
+  const dbs = React.useMemo(() => _.range(parseInt(serverConfig.databases)), [
+    serverConfig.databases,
+  ]);
 
   return (
     <Drawer
@@ -244,18 +252,12 @@ export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
             </IconButton>
           </Tooltip>
           <Tooltip title="Terminal">
-            <IconButton
-              onClick={() => handleOpenTerminal(true)}
-              onDoubleClick={() => handleOpenTerminal(false)}
-            >
+            <IconButton onClick={() => handleOpenTerminal(false)}>
               <TerminalIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Lua Editor">
-            <IconButton
-              onClick={() => handleOpenLuaEditor(true)}
-              onDoubleClick={() => handleOpenLuaEditor(false)}
-            >
+            <IconButton onClick={() => handleOpenLuaEditor(false)}>
               <LuaIcon />
             </IconButton>
           </Tooltip>
@@ -314,7 +316,6 @@ export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
               showType={treeShowTypeSelected ? 'tree' : 'flat'}
               activeObject={activeObject}
               deleteObject={deleteObject}
-              //updateObjectOpenness={updateObjectOpenness}
             />
           </>
         )}

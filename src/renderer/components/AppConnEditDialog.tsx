@@ -107,7 +107,11 @@ export const AppConnEditDialog = React.memo((props: AppConnEditDialogProps) => {
     });
   }, [props.connection]);
 
-  const handleCommit = () => {
+  const handleCancel = React.useCallback(() => {
+    setConnEditDialogVisible(false);
+  }, [setConnEditDialogVisible]);
+
+  const handleCommit = React.useCallback(() => {
     if (!validateFromData()) {
       showMessage('error', 'invalid form data');
     }
@@ -116,24 +120,32 @@ export const AppConnEditDialog = React.memo((props: AppConnEditDialogProps) => {
       resetFormData(draft, initialFormData);
     });
     handleCancel();
-  };
+  }, [
+    validateFromData,
+    showMessage,
+    saveConnection,
+    updateFormData,
+    resetFormData,
+    initialFormData,
+    handleCancel,
+  ]);
 
-  const handleCancel = () => {
-    setConnEditDialogVisible(false);
-  };
+  const handleTabChange = React.useCallback(
+    (_ev: React.ChangeEvent<{}>, tabId: string) => {
+      setActiveTabId(tabId);
+    },
+    [setActiveTabId]
+  );
 
-  const handleTabChange = (_ev: React.ChangeEvent<{}>, tabId: string) => {
-    setActiveTabId(tabId);
-  };
-
-  const handleChange = (key: string) => (
-    ev: React.ChangeEvent<{ value: string }>
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[key] = ev.target.value;
-    });
-  };
+  const handleChange = React.useCallback(
+    (key: string) => (ev: React.ChangeEvent<{ value: string }>) => {
+      ev.persist();
+      updateFormData((draft) => {
+        draft[key] = ev.target.value;
+      });
+    },
+    [updateFormData]
+  );
 
   const handleSelectFile = (key: string) => async () => {
     const options = {};
@@ -146,31 +158,35 @@ export const AppConnEditDialog = React.memo((props: AppConnEditDialogProps) => {
     });
   };
 
-  const handleChangeSecurityType = (
-    sType: 'SSL/TSL' | 'SSHTunnel' | undefined
-  ) => (ev: React.ChangeEvent<{ checked: boolean }>) => {
-    ev.persist();
-    updateFormData((draft) => {
-      if (ev.target.checked) {
-        draft.securityType = sType;
-      } else {
-        draft.securityType = undefined;
-      }
-    });
-  };
+  const handleChangeSecurityType = React.useCallback(
+    (sType: 'SSL/TSL' | 'SSHTunnel' | undefined) => (
+      ev: React.ChangeEvent<{ checked: boolean }>
+    ) => {
+      ev.persist();
+      updateFormData((draft) => {
+        if (ev.target.checked) {
+          draft.securityType = sType;
+        } else {
+          draft.securityType = undefined;
+        }
+      });
+    },
+    [updateFormData]
+  );
 
-  const handleChangeCheckbox = (key: string) => (
-    ev: React.ChangeEvent<{ checked: boolean }>
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[key] = ev.target.checked;
-    });
-  };
+  const handleChangeCheckbox = React.useCallback(
+    (key: string) => (ev: React.ChangeEvent<{ checked: boolean }>) => {
+      ev.persist();
+      updateFormData((draft) => {
+        draft[key] = ev.target.checked;
+      });
+    },
+    [updateFormData]
+  );
 
-  const handleTestConnection = () => {
+  const handleTestConnection = React.useCallback(() => {
     testConnection(formData as Connection);
-  };
+  }, [testConnection, formData]);
 
   return (
     <div className={classes.connAddDialogRoot}>

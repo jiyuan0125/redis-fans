@@ -36,9 +36,9 @@ export const AppLogDialog = React.memo((props: AppLogDialogProps) => {
   const { appLogDialogVisible, setAppLogDialogVisible, appRedisLogs } = props;
   const classes = useStyles();
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setAppLogDialogVisible(false);
-  };
+  }, [setAppLogDialogVisible]);
 
   return (
     <div>

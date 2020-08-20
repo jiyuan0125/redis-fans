@@ -6,6 +6,7 @@ asar: false
 
 files:
   - package.json
+  - icon.*
   - from: build/main
   - from: build/renderer
   - from: build/rediscli

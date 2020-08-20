@@ -8,13 +8,19 @@ import {
   DialogTitle,
   TextField,
 } from '@material-ui/core';
-import { DataObject, Settings, MessageType } from '@src/types';
+import {
+  Settings,
+  MessageType,
+  ZsetValueType,
+  ZsetDataObject,
+} from '@src/types';
 import { useImmer } from 'use-immer';
 import { resetFormData } from '@src/utils/common';
 import { useGlobal } from '@src/hooks/useGlobal';
 import { Rows, ColumnAlign } from './Rows';
 import { Value } from './Value';
 import { DIMENSION_ROWS_WIDTH_MAXSIZE } from '@src/constants';
+import { Scanner } from './Scaner';
 
 export const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -52,6 +58,29 @@ export const useStyles = makeStyles((theme: Theme) =>
     addRowDialogContent: {
       width: 600,
     },
+    pageControl: {
+      display: 'flex',
+      alignItems: 'center',
+    },
+    total: {
+      width: 100,
+      display: 'flex',
+      marginRight: theme.spacing(1),
+    },
+    totalLabel: {
+      fontWeight: 'bold',
+      width: 50,
+    },
+    totalValue: {
+      flex: 1,
+      textAlign: 'right',
+    },
+    pageControlInput: {
+      flex: 1,
+    },
+    pageControlMargin: {
+      marginRight: theme.spacing(1),
+    },
   })
 );
 
@@ -60,27 +89,28 @@ const initialFormData = {
   value: '',
 };
 
-interface ValueType {
-  value: string;
-  score: string;
-}
-
 interface ZsetValueProp {
-  object: DataObject<'zset'>;
-  addZsetValue: (object: DataObject, score: number, value: string) => void;
+  object: ZsetDataObject;
+  addZsetValue: (object: ZsetDataObject, score: number, value: string) => void;
   updateZsetValue: (
-    object: DataObject,
+    object: ZsetDataObject,
     oldValue: string,
     score: number,
     newValue: string
   ) => void;
-  deleteZsetValue: (object: DataObject, value: string) => void;
+  deleteZsetValue: (object: ZsetDataObject, value: string) => void;
   appSettings: Settings;
   refreshIndicator: number;
   showMessage: (
     type: MessageType,
     content: string,
     description?: string
+  ) => void;
+  fetchZsetValues: (
+    object: ZsetDataObject,
+    cursor: number,
+    match: string,
+    count: number
   ) => void;
 }
 
@@ -93,26 +123,12 @@ export const ZsetValue = React.memo((props: ZsetValueProp) => {
     object,
     appSettings,
     refreshIndicator,
+    fetchZsetValues,
   } = props;
   const classes = useStyles();
-  const [values, setValues] = React.useState([] as ValueType[]);
   const [rowsSize, setRowsSize] = React.useState<number>(
     DIMENSION_ROWS_WIDTH_MAXSIZE
   );
-
-  React.useEffect(() => {
-    const originalValues = object.value;
-    if (originalValues) {
-      const values = [] as ValueType[];
-      for (let i = 0; i < originalValues.length; i += 2) {
-        values.push({
-          value: originalValues[i],
-          score: originalValues[i + 1],
-        });
-      }
-      setValues(values);
-    }
-  }, [props.object.value, refreshIndicator]);
 
   const [selected, setSelected] = React.useState<number>(-1);
   const [addRowDialogVisible, setAddRowDialogVisible] = React.useState(false);
@@ -123,34 +139,38 @@ export const ZsetValue = React.memo((props: ZsetValueProp) => {
   const [score, setScore] = React.useState('');
   const [value, setValue] = React.useState('');
 
-  const data = (values || []).slice().sort((a, b) => {
-    return a.score.localeCompare(b.score);
-  }) as Record<string, any>[];
+  const data = React.useMemo(
+    () =>
+      object.values ||
+      (([] as ZsetValueType[]).slice().sort((a, b) => {
+        return a.score.toString().localeCompare(b.score.toString());
+      }) as Record<string, any>[]),
+    [object.values]
+  );
 
   React.useEffect(() => {
-    if (typeof selected === 'number') {
-      if (selected > -1) {
-        setScore(data[selected].score);
-        setValue(data[selected].value);
-      }
+    if (selected !== -1) {
+      setScore(data[selected]?.score?.toString());
+      setValue(data[selected]?.value);
     }
-  }, [selected, data]);
+  }, [selected, setScore, setValue, data, refreshIndicator]);
 
-  const handleObjectScoreChange = (
-    ev: React.ChangeEvent<{ value: string }>
-  ) => {
-    setScore(ev.target.value);
-  };
+  const handleObjectScoreChange = React.useCallback(
+    (ev: React.ChangeEvent<{ value: string }>) => {
+      setScore(ev.target.value);
+    },
+    [setScore]
+  );
 
-  const handleAddRow = () => {
+  const handleAddRow = React.useCallback(() => {
     setAddRowDialogVisible(true);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCancel = () => {
+  const handleAddRowCancel = React.useCallback(() => {
     setAddRowDialogVisible(false);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCommit = () => {
+  const handleAddRowCommit = React.useCallback(() => {
     const scoreNumValue = parseInt(formData.score);
     if (scoreNumValue === NaN) {
       showMessage('error', 'Score must be a number');
@@ -161,65 +181,79 @@ export const ZsetValue = React.memo((props: ZsetValueProp) => {
       resetFormData(draft, initialFormData);
     });
     handleAddRowCancel();
-  };
+  }, [
+    formData,
+    showMessage,
+    addZsetValue,
+    object,
+    updateFormData,
+    resetFormData,
+    initialFormData,
+    handleAddRowCancel,
+  ]);
 
-  const handleDeleteRow = (selected: string | number) => {
-    if (typeof selected === 'number') {
+  const handleDeleteRow = React.useCallback(
+    (selected: number) => {
       deleteZsetValue(object, data[selected].value);
-    }
-  };
+    },
+    [deleteZsetValue, object, data]
+  );
 
-  const handleSelectRow = (selected: string | number) => {
-    if (typeof selected === 'number') {
+  const handleSelectRow = React.useCallback(
+    (selected: number) => {
       setSelected(selected);
-    }
-  };
+    },
+    [setSelected]
+  );
 
-  const handleDeleteRowCancel = () => {
+  const handleDeleteRowCancel = React.useCallback(() => {
     setDeleteRowDialogVisible(false);
-  };
+  }, [setDeleteRowDialogVisible]);
 
-  const handleDeleteRowCommit = () => {
-    deleteZsetValue(object, values[selected].value);
+  const handleDeleteRowCommit = React.useCallback(() => {
+    deleteZsetValue(object, data[selected].value);
     handleDeleteRowCancel();
-  };
+  }, [deleteZsetValue, object, data, selected, handleDeleteRowCancel]);
 
-  const handleChange = (
-    ev: React.ChangeEvent<{ value: string }>,
-    field: string
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[field] = ev.target.value;
-    });
-  };
+  const handleChange = React.useCallback(
+    (ev: React.ChangeEvent<{ value: string }>, field: string) => {
+      ev.persist();
+      updateFormData((draft) => {
+        draft[field] = ev.target.value;
+      });
+    },
+    [updateFormData]
+  );
 
-  const handleValueChange = (value: string) => {
-    setValue(value);
-  };
+  const handleValueChange = React.useCallback(
+    (value: string) => {
+      setValue(value);
+    },
+    [setValue]
+  );
 
-  const handleSaveValue = () => {
-    if (selected > -1) {
+  const handleSaveValue = React.useCallback(() => {
+    if (selected !== -1) {
       const scoreNumValue = parseInt(score);
       if (scoreNumValue === NaN) {
         showMessage('error', 'Score must be a number.');
         return;
       }
-      updateZsetValue(props.object, data[selected].value, scoreNumValue, value);
+      updateZsetValue(object, data[selected].value, scoreNumValue, value);
     }
-  };
+  }, [selected, score, object, data, value]);
 
   const columns = [
     {
       label: 'VALUE',
       key: 'value',
-      width: 200,
+      flex: 2,
       align: 'left' as ColumnAlign,
     },
     {
       label: 'SCORE',
       key: 'score',
-      width: 100,
+      flex: 1,
       align: 'right' as ColumnAlign,
     },
   ];
@@ -227,18 +261,23 @@ export const ZsetValue = React.memo((props: ZsetValueProp) => {
   return (
     <div className={classes.zsetValueRoot}>
       <div className={classes.left} style={{ width: rowsSize }}>
+        <Scanner<ZsetDataObject>
+          object={object}
+          onFatchValues={fetchZsetValues}
+          scanBtnLabel="zscan"
+        />
         <Rows
           onAddRow={handleAddRow}
           onDeleteRow={handleDeleteRow}
           onSelect={handleSelectRow}
           primaryKey="value"
-          isList
-          data={data}
+          rows={data}
           selected={selected}
           columns={columns}
           size={rowsSize}
           onSizeChange={setRowsSize}
           appSettings={appSettings}
+          total={object.total}
         />
       </div>
       <div className={classes.right}>

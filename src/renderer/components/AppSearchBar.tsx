@@ -34,18 +34,22 @@ export const AppSearchBar = React.memo((props: AppSearchBarProps) => {
   const { searchKeyword, setSearchKeyword } = props;
   const classes = useStyles();
 
-  const handleSearchInput = (ev: React.ChangeEvent<{ value: string }>) => {
-    setSearchKeyword(ev.target.value);
-  };
+  const handleSearchInput = React.useCallback(
+    (ev: React.ChangeEvent<{ value: string }>) => {
+      setSearchKeyword(ev.target.value);
+    },
+    [setSearchKeyword]
+  );
 
-  const handleSearchClean = () => {
+  const handleSearchClean = React.useCallback(() => {
     setSearchKeyword('');
-  };
+  }, [setSearchKeyword]);
 
   return (
     <div className={clsx(classes.appSearchBarRoot, props.className)}>
       <FormControl fullWidth>
         <OutlinedInput
+          spellCheck={false}
           startAdornment={
             <InputAdornment position="start">
               <SearchIcon />

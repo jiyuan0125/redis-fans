@@ -77,38 +77,47 @@ export const AppConnListDialog = React.memo((props: AppConnListDialogProps) => {
     loadConnectionsFromDB();
   }, []);
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setConnListDialogVisible(false);
-  };
+  }, [setConnListDialogVisible]);
 
-  const handleActiveSession = (connection: Connection) => {
-    connect(connection);
-    handleClose();
-  };
+  const handleActiveSession = React.useCallback(
+    (connection: Connection) => {
+      connect(connection);
+      handleClose();
+    },
+    [connect, handleClose]
+  );
 
-  const handleDeleteConnection = (connectionId: string) => {
-    setSelected(connectionId);
-    setDeleteConnDialogVisible(true);
-  };
+  const handleDeleteConnection = React.useCallback(
+    (connectionId: string) => {
+      setSelected(connectionId);
+      setDeleteConnDialogVisible(true);
+    },
+    [setSelected, setDeleteConnDialogVisible]
+  );
 
-  const handleEditConnection = (connectionId: string) => {
-    setSelected(connectionId);
-    setConnEditDialogVisible(true);
-  };
+  const handleEditConnection = React.useCallback(
+    (connectionId: string) => {
+      setSelected(connectionId);
+      setConnEditDialogVisible(true);
+    },
+    [setSelected, setConnEditDialogVisible]
+  );
 
-  const handleAddConnection = () => {
+  const handleAddConnection = React.useCallback(() => {
     setSelected('');
     setConnEditDialogVisible(true);
-  };
+  }, [setSelected, setConnEditDialogVisible]);
 
-  const handleDeleteConnCancel = () => {
+  const handleDeleteConnCancel = React.useCallback(() => {
     setDeleteConnDialogVisible(false);
-  };
+  }, [setDeleteConnDialogVisible]);
 
-  const handleDeleteConnCommit = () => {
+  const handleDeleteConnCommit = React.useCallback(() => {
     deleteConnection(selected);
     handleDeleteConnCancel();
-  };
+  }, [deleteConnection, handleDeleteConnCancel]);
 
   return (
     <div className={classes.appConnListDialogRoot}>

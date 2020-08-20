@@ -6,7 +6,16 @@ import { HashValue } from '@src/components/values/HashValue';
 import { ListValue } from '@src/components/values/ListValue';
 import { SetValue } from '@src/components/values/SetValue';
 import { ZsetValue } from '@src/components/values/ZsetValue';
-import { DataObject, Settings, MessageType } from '@src/types';
+import {
+  DataObject,
+  Settings,
+  MessageType,
+  HashDataObject,
+  ListDataObject,
+  SetDataObject,
+  ZsetDataObject,
+  StringDataObject,
+} from '@src/types';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -22,34 +31,42 @@ const useStyles = makeStyles((theme: Theme) =>
 
 export interface AppObjectValueProps {
   object: DataObject;
-  updateObjectValue: (object: DataObject, value: string) => void;
-  addHashField: (object: DataObject, field: string, value: string) => void;
+  updateStringValue: (object: StringDataObject, value: string) => void;
+  addHashField: (object: HashDataObject, field: string, value: string) => void;
   updateHashField: (
-    object: DataObject,
+    object: HashDataObject,
     oldField: string,
     newField: string,
     value: string
   ) => void;
-  updateHashValue: (object: DataObject, field: string, value: string) => void;
-  deleteHashField: (object: DataObject, field: string) => void;
-  addListValue: (object: DataObject, value: string) => void;
-  updateListValue: (object: DataObject, index: number, value: string) => void;
-  deleteListValue: (object: DataObject, index: number) => void;
-  addSetValue: (object: DataObject, value: string) => void;
+  updateHashValue: (
+    object: HashDataObject,
+    field: string,
+    value: string
+  ) => void;
+  deleteHashField: (object: HashDataObject, field: string) => void;
+  addListValue: (object: ListDataObject, value: string) => void;
+  updateListValue: (
+    object: ListDataObject,
+    index: number,
+    value: string
+  ) => void;
+  deleteListValue: (object: ListDataObject, index: number) => void;
+  addSetValue: (object: SetDataObject, value: string) => void;
   updateSetValue: (
-    object: DataObject,
+    object: SetDataObject,
     oldValue: string,
     newValue: string
   ) => void;
-  deleteSetValue: (object: DataObject, value: string) => void;
-  addZsetValue: (object: DataObject, score: number, value: string) => void;
+  deleteSetValue: (object: SetDataObject, value: string) => void;
+  addZsetValue: (object: ZsetDataObject, score: number, value: string) => void;
   updateZsetValue: (
-    object: DataObject,
+    object: ZsetDataObject,
     oldValue: string,
     score: number,
     newValue: string
   ) => void;
-  deleteZsetValue: (object: DataObject, value: string) => void;
+  deleteZsetValue: (object: ZsetDataObject, value: string) => void;
   appSettings: Settings;
   refreshIndicator: number;
   showMessage: (
@@ -57,13 +74,36 @@ export interface AppObjectValueProps {
     content: string,
     description?: string
   ) => void;
+  fetchListValues: (
+    object: ListDataObject,
+    start: number,
+    stop: number
+  ) => void;
+  fetchHashValues: (
+    object: HashDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
+  fetchSetValues: (
+    object: SetDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
+  fetchZsetValues: (
+    object: ZsetDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
 }
 
 export const AppObjectValue = React.memo((props: AppObjectValueProps) => {
   const classes = useStyles();
   const {
     object,
-    updateObjectValue,
+    updateStringValue,
     addHashField,
     updateHashField,
     updateHashValue,
@@ -80,28 +120,19 @@ export const AppObjectValue = React.memo((props: AppObjectValueProps) => {
     appSettings,
     refreshIndicator,
     showMessage,
+    fetchListValues,
+    fetchHashValues,
+    fetchSetValues,
+    fetchZsetValues,
   } = props;
 
-  const renderValue = () => {
+  const renderValue = React.useCallback(() => {
     switch (object.dataType) {
       case 'string':
         return (
           <StringValue
-            updateObjectValue={updateObjectValue}
-            object={object}
-            appSettings={appSettings}
-            refreshIndicator={refreshIndicator}
-            showMessage={showMessage}
-          />
-        );
-      case 'hash':
-        return (
-          <HashValue
-            addHashField={addHashField}
-            updateHashField={updateHashField}
-            updateHashValue={updateHashValue}
-            deleteHashField={deleteHashField}
-            object={object}
+            updateStringValue={updateStringValue}
+            object={object as StringDataObject}
             appSettings={appSettings}
             refreshIndicator={refreshIndicator}
             showMessage={showMessage}
@@ -113,10 +144,25 @@ export const AppObjectValue = React.memo((props: AppObjectValueProps) => {
             addListValue={addListValue}
             updateListValue={updateListValue}
             deleteListValue={deleteListValue}
-            object={object}
+            object={object as ListDataObject}
             appSettings={appSettings}
             refreshIndicator={refreshIndicator}
             showMessage={showMessage}
+            fetchListValues={fetchListValues}
+          />
+        );
+      case 'hash':
+        return (
+          <HashValue
+            addHashField={addHashField}
+            updateHashField={updateHashField}
+            updateHashValue={updateHashValue}
+            deleteHashField={deleteHashField}
+            object={object as HashDataObject}
+            appSettings={appSettings}
+            refreshIndicator={refreshIndicator}
+            showMessage={showMessage}
+            fetchHashValues={fetchHashValues}
           />
         );
       case 'set':
@@ -125,10 +171,11 @@ export const AppObjectValue = React.memo((props: AppObjectValueProps) => {
             addSetValue={addSetValue}
             updateSetValue={updateSetValue}
             deleteSetValue={deleteSetValue}
-            object={object}
+            object={object as SetDataObject}
             appSettings={appSettings}
             refreshIndicator={refreshIndicator}
             showMessage={showMessage}
+            fetchSetValues={fetchSetValues}
           />
         );
       case 'zset':
@@ -137,16 +184,39 @@ export const AppObjectValue = React.memo((props: AppObjectValueProps) => {
             addZsetValue={addZsetValue}
             updateZsetValue={updateZsetValue}
             deleteZsetValue={deleteZsetValue}
-            object={object}
+            object={object as ZsetDataObject}
             appSettings={appSettings}
             refreshIndicator={refreshIndicator}
             showMessage={showMessage}
+            fetchZsetValues={fetchZsetValues}
           />
         );
       default:
         return null;
     }
-  };
+  }, [
+    object,
+    updateStringValue,
+    appSettings,
+    refreshIndicator,
+    showMessage,
+    addListValue,
+    updateListValue,
+    deleteListValue,
+    fetchListValues,
+    addHashField,
+    updateHashField,
+    updateHashValue,
+    fetchHashValues,
+    addSetValue,
+    updateSetValue,
+    deleteSetValue,
+    fetchSetValues,
+    addZsetValue,
+    updateZsetValue,
+    deleteZsetValue,
+    fetchZsetValues,
+  ]);
 
   return <div className={classes.appObjectValueRoot}>{renderValue()}</div>;
 });

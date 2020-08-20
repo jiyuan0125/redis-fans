@@ -1,7 +1,7 @@
 {
   "name": "redis-fans",
   "description": "A Redis GUI client, build on Electron & React & Material UI.",
-  "version": "0.1.0-preview",
+  "version": "0.1.1-preview",
   "main": "main.bundle.js",
   "repository": "git@gitee.com:jiyuan0125/redis-fans.git",
   "author": "Su Jiyuan <jiyuan0125@126.com>",
@@ -14,7 +14,7 @@
     "build-renderer": "cross-env NODE_ENV=production webpack --env.prod --config config/webpack.renderer.config.js",
     "build-all": "yarn build-rediscli && yarn build-main && yarn build-renderer",
     "postinstall": "electron-builder install-app-deps",
-    "dist": "electron-builder -mw"
+    "dist": "electron-builder -m"
   },
   "dependencies": {
     "@material-ui/core": "^4.10.0",

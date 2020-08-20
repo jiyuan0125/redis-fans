@@ -8,12 +8,18 @@ import {
   DialogTitle,
   TextField,
 } from '@material-ui/core';
-import { DataObject, Settings, MessageType } from '@src/types';
+import {
+  Settings,
+  MessageType,
+  ListDataObject,
+  ListValueType,
+} from '@src/types';
 import { useImmer } from 'use-immer';
 import { resetFormData } from '@src/utils/common';
 import { Rows, ColumnAlign } from './Rows';
 import { Value } from './Value';
 import { DIMENSION_ROWS_WIDTH_MAXSIZE } from '@src/constants';
+import { Ranger } from './Ranger';
 
 export const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -57,16 +63,25 @@ const initialFormData = {
 };
 
 interface ListValueProp {
-  object: DataObject<'list'>;
-  addListValue: (object: DataObject, value: string) => void;
-  updateListValue: (object: DataObject, index: number, value: string) => void;
-  deleteListValue: (object: DataObject, index: number) => void;
+  object: ListDataObject;
+  addListValue: (object: ListDataObject, value: string) => void;
+  updateListValue: (
+    object: ListDataObject,
+    index: number,
+    value: string
+  ) => void;
+  deleteListValue: (object: ListDataObject, index: number) => void;
   appSettings: Settings;
   refreshIndicator: number;
   showMessage: (
     type: MessageType,
     content: string,
     description?: string
+  ) => void;
+  fetchListValues: (
+    object: ListDataObject,
+    start: number,
+    stop: number
   ) => void;
 }
 
@@ -79,6 +94,7 @@ export const ListValue = React.memo((props: ListValueProp) => {
     appSettings,
     refreshIndicator,
     showMessage,
+    fetchListValues,
   } = props;
   const classes = useStyles();
   const [selected, setSelected] = React.useState<number>(-1);
@@ -89,68 +105,82 @@ export const ListValue = React.memo((props: ListValueProp) => {
     DIMENSION_ROWS_WIDTH_MAXSIZE
   );
 
-  const data = (object.value || []) as string[];
+  const data = React.useMemo(() => object.values || ([] as ListValueType[]), [
+    object.values,
+  ]);
 
   React.useEffect(() => {
-    if (typeof selected === 'number') {
-      if (selected > -1) {
-        setValue(data[selected]);
-      }
+    if (selected !== -1) {
+      setValue(data[selected]?.value);
     }
-  }, [selected, data, refreshIndicator]);
+  }, [selected]);
 
-  const handleAddRow = () => {
+  const handleAddRow = React.useCallback(() => {
     setAddRowDialogVisible(true);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCancel = () => {
+  const handleAddRowCancel = React.useCallback(() => {
     setAddRowDialogVisible(false);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCommit = () => {
+  const handleAddRowCommit = React.useCallback(() => {
     addListValue(object, formData.value);
     updateFormData((draft) => {
       resetFormData(draft, initialFormData);
     });
     handleAddRowCancel();
-  };
+  }, [
+    addListValue,
+    object,
+    formData,
+    updateFormData,
+    resetFormData,
+    initialFormData,
+    handleAddRowCancel,
+  ]);
 
-  const handleDeleteRow = (selected: string | number) => {
-    if (typeof selected === 'number') {
+  const handleDeleteRow = React.useCallback(
+    (selected: number) => {
       deleteListValue(object, selected);
-    }
-  };
+    },
+    [deleteListValue, object]
+  );
 
-  const handleSelectRow = (selected: string | number) => {
-    if (typeof selected === 'number') {
+  const handleSelectRow = React.useCallback(
+    (selected: number) => {
       setSelected(selected);
+    },
+    [setSelected, selected]
+  );
+
+  const handleChange = React.useCallback(
+    (ev: React.ChangeEvent<{ value: string }>, key: string) => {
+      ev.persist();
+      updateFormData((draft) => {
+        draft[key] = ev.target.value;
+      });
+    },
+    [updateFormData]
+  );
+
+  const handleValueChange = React.useCallback(
+    (value: string) => {
+      setValue(value);
+    },
+    [setValue]
+  );
+
+  const handleSaveValue = React.useCallback(() => {
+    if (selected !== -1) {
+      updateListValue(object, selected, value);
     }
-  };
-
-  const handleChange = (
-    ev: React.ChangeEvent<{ value: string }>,
-    key: string
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[key] = ev.target.value;
-    });
-  };
-
-  const handleValueChange = (value: string) => {
-    setValue(value);
-  };
-
-  const handleSaveValue = () => {
-    if (selected > -1) {
-      updateListValue(props.object, selected, value);
-    }
-  };
+  }, [selected, updateListValue, object, value]);
 
   const columns = [
     {
+      key: 'value',
       label: 'VALUES',
-      width: 300,
+      flex: 1,
       align: 'left' as ColumnAlign,
     },
   ];
@@ -158,18 +188,22 @@ export const ListValue = React.memo((props: ListValueProp) => {
   return (
     <div className={classes.listValueRoot}>
       <div className={classes.left} style={{ width: rowsSize }}>
+        <Ranger<ListDataObject>
+          object={object}
+          onFetchValues={fetchListValues}
+        />
         <Rows
           onAddRow={handleAddRow}
           onDeleteRow={handleDeleteRow}
           onSelect={handleSelectRow}
           primaryKey="value"
-          isList
-          data={data}
+          rows={data}
           selected={selected}
           columns={columns}
           size={rowsSize}
           onSizeChange={setRowsSize}
           appSettings={appSettings}
+          total={object.total}
         />
       </div>
       <div className={classes.right}>

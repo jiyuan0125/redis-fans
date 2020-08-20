@@ -8,13 +8,19 @@ import {
   DialogTitle,
   TextField,
 } from '@material-ui/core';
-import { DataObject, Settings, MessageType } from '@src/types';
+import {
+  Settings,
+  MessageType,
+  HashDataObject,
+  HashValueType,
+} from '@src/types';
 import { useImmer } from 'use-immer';
-import { resetFormData, convertHashToArray } from '@src/utils/common';
+import { resetFormData } from '@src/utils/common';
 import _ from 'lodash';
 import { Rows, ColumnAlign } from './Rows';
 import { Value } from './Value';
 import { DIMENSION_ROWS_WIDTH_MAXSIZE } from '@src/constants';
+import { Scanner } from './Scaner';
 
 export const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -101,16 +107,20 @@ const initialFormData = {
 };
 
 interface HashValueProp {
-  object: DataObject<'hash'>;
-  addHashField: (object: DataObject, field: string, value: string) => void;
+  object: HashDataObject;
+  addHashField: (object: HashDataObject, field: string, value: string) => void;
   updateHashField: (
-    object: DataObject,
+    object: HashDataObject,
     oldField: string,
     newField: string,
     value: string
   ) => void;
-  updateHashValue: (object: DataObject, field: string, value: string) => void;
-  deleteHashField: (object: DataObject, field: string) => void;
+  updateHashValue: (
+    object: HashDataObject,
+    field: string,
+    value: string
+  ) => void;
+  deleteHashField: (object: HashDataObject, field: string) => void;
   appSettings: Settings;
   refreshIndicator: number;
   showMessage: (
@@ -118,11 +128,17 @@ interface HashValueProp {
     content: string,
     description?: string
   ) => void;
+  fetchHashValues: (
+    object: HashDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
 }
 
 export const HashValue = React.memo((props: HashValueProp) => {
   const classes = useStyles();
-  const [selected, setSelected] = React.useState<string>('');
+  const [selected, setSelected] = React.useState<number>(-1);
   const [addRowDialogVisible, setAddRowDialogVisible] = React.useState(false);
   const [formData, updateFormData] = useImmer(initialFormData);
   const [rowsSize, setRowsSize] = React.useState<number>(
@@ -137,36 +153,47 @@ export const HashValue = React.memo((props: HashValueProp) => {
     appSettings,
     refreshIndicator,
     showMessage,
+    fetchHashValues,
   } = props;
 
-  const data = convertHashToArray(object.value).sort((a, b) => {
-    return a.key.localeCompare(b.key);
-  }) as Record<string, any>[];
+  const data = React.useMemo(
+    () =>
+      object.values.slice().sort((a, b) => {
+        return a.field.localeCompare(b.field);
+      }) as HashValueType[],
+    [object.values]
+  );
 
   const [value, setValue] = React.useState('');
   const [field, setField] = React.useState('');
   React.useEffect(() => {
-    setField(selected || '');
-    setValue(object.value![selected] || '');
-  }, [selected, object.value, refreshIndicator]);
+    setField(data[selected]?.field || '');
+    setValue(data[selected]?.value || '');
+  }, [selected, object.values, refreshIndicator]);
 
-  const handleFieldChange = (field: string) => {
-    setField(field);
-  };
+  const handleFieldChange = React.useCallback(
+    (field: string) => {
+      setField(field);
+    },
+    [setField, field]
+  );
 
-  const handleValueChange = (value: string) => {
-    setValue(value);
-  };
+  const handleValueChange = React.useCallback(
+    (value: string) => {
+      setValue(value);
+    },
+    [setValue, value]
+  );
 
-  const handleAddRow = () => {
+  const handleAddRow = React.useCallback(() => {
     setAddRowDialogVisible(true);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCancel = () => {
+  const handleAddRowCancel = React.useCallback(() => {
     setAddRowDialogVisible(false);
-  };
+  }, [setAddRowDialogVisible]);
 
-  const handleAddRowCommit = () => {
+  const handleAddRowCommit = React.useCallback(() => {
     if (!formData.field) {
       showMessage('error', 'Hash field should not be empty.');
       return;
@@ -176,58 +203,68 @@ export const HashValue = React.memo((props: HashValueProp) => {
       resetFormData(draft, initialFormData);
     });
     handleAddRowCancel();
-  };
+  }, [
+    object,
+    formData,
+    showMessage,
+    addHashField,
+    updateFormData,
+    resetFormData,
+    initialFormData,
+    handleAddRowCancel,
+  ]);
 
-  const handleDeleteRow = (selected: string | number) => {
-    if (typeof selected === 'string') {
-      deleteHashField(object, selected);
-      setSelected('');
-    }
-  };
+  const handleDeleteRow = React.useCallback(
+    (selected: number) => {
+      deleteHashField(object, data[selected].field);
+    },
+    [deleteHashField, object, data]
+  );
 
-  const handleChange = (
-    ev: React.ChangeEvent<{ value: string }>,
-    field: string
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[field] = ev.target.value;
-    });
-  };
+  const handleChange = React.useCallback(
+    (ev: React.ChangeEvent<{ value: string }>, field: string) => {
+      ev.persist();
+      updateFormData((draft) => {
+        draft[field] = ev.target.value;
+      });
+    },
+    [updateFormData]
+  );
 
-  const handleUpdateField = () => {
-    if (selected) {
+  const handleUpdateField = React.useCallback(() => {
+    if (selected !== -1) {
       if (!field) {
         showMessage('error', 'Hash field should not be empty.');
         return;
       }
-      updateHashField(props.object, selected, field, value);
+      updateHashField(object, data[selected].field, field, value);
     }
-  };
+  }, [selected, showMessage, field, updateHashField, object, data, value]);
 
-  const handleUpdateValue = () => {
-    if (selected) {
-      updateHashValue(props.object, selected, value);
+  const handleUpdateValue = React.useCallback(() => {
+    if (selected !== -1) {
+      updateHashValue(object, data[selected].field, value);
     }
-  };
+  }, [selected, updateHashField, object, data, value]);
 
-  const handleSelectRow = (selected: string | number) => {
-    if (typeof selected === 'string') {
+  const handleSelectRow = React.useCallback(
+    (selected: number) => {
       setSelected(selected);
-    }
-  };
+    },
+    [setSelected, selected]
+  );
 
   const columns = [
     {
       label: 'FIELDS',
-      key: 'key',
-      width: 150,
+      key: 'field',
+      flex: 1,
       align: 'left' as ColumnAlign,
     },
     {
       label: 'VALUES',
       key: 'value',
-      width: 150,
+      flex: 1,
       align: 'left' as ColumnAlign,
     },
   ];
@@ -235,18 +272,23 @@ export const HashValue = React.memo((props: HashValueProp) => {
   return (
     <div className={classes.hashValueRoot}>
       <div className={classes.left} style={{ width: rowsSize }}>
+        <Scanner<HashDataObject>
+          object={object}
+          onFatchValues={fetchHashValues}
+          scanBtnLabel="hscan"
+        />
         <Rows
           onAddRow={handleAddRow}
           onDeleteRow={handleDeleteRow}
           onSelect={handleSelectRow}
-          primaryKey="key"
-          isList={false}
-          data={data}
+          primaryKey="field"
+          rows={data}
           selected={selected}
           columns={columns}
           size={rowsSize}
           onSizeChange={setRowsSize}
           appSettings={appSettings}
+          total={object.total}
         />
       </div>
       <div className={classes.right}>

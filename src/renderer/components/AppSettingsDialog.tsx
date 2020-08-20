@@ -63,11 +63,11 @@ export const AppSettingsDialog = React.memo((props: AppSettingsDialogProps) => {
   const [fonts, setFonts] = React.useState<string[]>([]);
   const classes = useStyles();
 
-  const loadFonts = async () => {
+  const loadFonts = React.useCallback(async () => {
     const fontList = electron.remote.require('font-list');
     const systemFonts: string[] = await fontList.getFonts();
     setFonts(systemFonts.map((font) => font.replace(/"/g, '')));
-  };
+  }, [setFonts]);
 
   React.useEffect(() => {
     resetFormData(formData, appSettings);
@@ -77,32 +77,36 @@ export const AppSettingsDialog = React.memo((props: AppSettingsDialogProps) => {
     loadFonts();
   }, []);
 
-  const handleChange = (key: string) => (
-    ev: React.ChangeEvent<{ name?: string; value: unknown }>
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[key] = ev.target.value;
-    });
-  };
+  const handleChange = React.useCallback(
+    (key: string) => (
+      ev: React.ChangeEvent<{ name?: string; value: unknown }>
+    ) => {
+      ev.persist();
+      updateFormData((draft) => {
+        draft[key] = ev.target.value;
+      });
+    },
+    [updateFormData]
+  );
 
-  const handleChangeSwitch = (key: string) => (
-    ev: React.ChangeEvent<{ checked: boolean }>
-  ) => {
-    ev.persist();
-    updateFormData((draft) => {
-      draft[key] = ev.target.checked;
-    });
-  };
+  //const handleChangeSwitch = React.useCallback(
+  //(key: string) => (ev: React.ChangeEvent<{ checked: boolean }>) => {
+  //ev.persist();
+  //updateFormData((draft) => {
+  //draft[key] = ev.target.checked;
+  //});
+  //},
+  //[updateFormData]
+  //);
 
-  const handleCancel = () => {
+  const handleCancel = React.useCallback(() => {
     setAppSettingsDialogVisible(false);
-  };
+  }, [setAppSettingsDialogVisible]);
 
-  const handleSubmit = () => {
+  const handleSubmit = React.useCallback(() => {
     saveAppSettings(formData);
     handleCancel();
-  };
+  }, [saveAppSettings, formData, handleCancel]);
 
   return (
     <div>

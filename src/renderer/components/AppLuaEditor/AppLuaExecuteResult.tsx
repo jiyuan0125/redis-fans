@@ -96,12 +96,12 @@ export const AppLuaExecuteResult = React.memo(
     } = props;
     const classes = useStyles(appSettings);
 
-    const handleResultTabChange = (
-      _ev: React.ChangeEvent<{}>,
-      resultTab: number
-    ) => {
-      setResultActiveTab(resultTab);
-    };
+    const handleResultTabChange = React.useCallback(
+      (_ev: React.ChangeEvent<{}>, resultTab: number) => {
+        setResultActiveTab(resultTab);
+      },
+      [setResultActiveTab]
+    );
 
     return (
       <div

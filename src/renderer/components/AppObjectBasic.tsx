@@ -78,10 +78,10 @@ export const AppObjectBasic = React.memo((props: AppObjectBasicProps) => {
   const [ttlDialogVisible, setTtlDialogVisible] = React.useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = React.useState(false);
 
-  const handleReloadObject = () => {
+  const handleReloadObject = React.useCallback(() => {
     loadObject(object);
     updateRefreshIndicator();
-  };
+  }, [loadObject, object, updateRefreshIndicator]);
 
   const getIcon = () => {
     switch (object.dataType) {

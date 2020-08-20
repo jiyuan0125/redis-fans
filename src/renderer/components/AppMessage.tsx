@@ -20,9 +20,9 @@ export const AppMessage = React.memo((props: AppMessageProps) => {
   const { closeMessage, message } = props;
   const classes = useStyles();
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     closeMessage();
-  };
+  }, [closeMessage]);
 
   return (
     <Snackbar

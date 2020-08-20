@@ -62,36 +62,24 @@ export const AppAddObjectDialog = React.memo(
     const [formData, updateFormData] = useImmer(initialFormData);
     const classes = useStyles();
 
-    const handleChange = (
-      ev: React.ChangeEvent<{ name?: string; value: unknown }>,
-      key: string
-    ) => {
-      ev.persist();
-      updateFormData((draft) => {
-        draft[key] = ev.target.value;
-      });
-    };
+    const handleChange = React.useCallback(
+      (
+        ev: React.ChangeEvent<{ name?: string; value: unknown }>,
+        key: string
+      ) => {
+        ev.persist();
+        updateFormData((draft) => {
+          draft[key] = ev.target.value;
+        });
+      },
+      [updateFormData]
+    );
 
-    const handleCancel = () => {
+    const handleCancel = React.useCallback(() => {
       setAppAddObjectDialogVisible(false);
-    };
+    }, [setAppAddObjectDialogVisible]);
 
-    const handleSubmit = () => {
-      if (!validateForm()) return;
-      createObject({
-        key: formData.key,
-        dataType: formData.type,
-        value: formData.value,
-        field: formData.field,
-        score: formData.score,
-      });
-      updateFormData((draft) => {
-        resetFormData(draft, initialFormData);
-      });
-      handleCancel();
-    };
-
-    const validateForm = () => {
+    const validateForm = React.useCallback(() => {
       if (!formData.key) {
         showMessage('error', 'Key should not be empty.');
         return false;
@@ -115,7 +103,29 @@ export const AppAddObjectDialog = React.memo(
       }
 
       return true;
-    };
+    }, [formData, showMessage]);
+
+    const handleSubmit = React.useCallback(() => {
+      if (!validateForm()) return;
+      createObject({
+        key: formData.key,
+        dataType: formData.type,
+        value: formData.value,
+        field: formData.field,
+        score: formData.score,
+      });
+      updateFormData((draft) => {
+        resetFormData(draft, initialFormData);
+      });
+      handleCancel();
+    }, [
+      validateForm,
+      createObject,
+      updateFormData,
+      resetFormData,
+      initialFormData,
+      handleCancel,
+    ]);
 
     return (
       <Dialog open={appAddObjectDialogVisible} onClose={handleCancel}>

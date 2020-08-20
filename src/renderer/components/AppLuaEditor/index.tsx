@@ -185,12 +185,7 @@ export const AppLuaEditor = React.memo((props: AppLuaEditorProps) => {
     }
   }, []);
 
-  React.useEffect(() => {
-    setKeyIndexes(parseKeyIndexes(lua));
-    setArgvIndexs(parseArgvIndexes(lua));
-  }, [lua]);
-
-  const parseKeyIndexes = (lua: string) => {
+  const parseKeyIndexes = React.useCallback((lua: string) => {
     const pattern = /(?<=KEYS\[)\d+(?=\])/g;
     const matched = lua.match(pattern);
     if (matched && matched.length > 0) {
@@ -198,9 +193,9 @@ export const AppLuaEditor = React.memo((props: AppLuaEditorProps) => {
       return _.range(1, parseInt(matched[0]) + 1);
     }
     return [];
-  };
+  }, []);
 
-  const parseArgvIndexes = (lua: string) => {
+  const parseArgvIndexes = React.useCallback((lua: string) => {
     const pattern = /(?<=ARGV\[)\d+(?=\])/g;
     const matched = lua.match(pattern);
     if (matched && matched.length > 0) {
@@ -208,36 +203,45 @@ export const AppLuaEditor = React.memo((props: AppLuaEditorProps) => {
       return _.range(1, parseInt(matched[0]) + 1);
     }
     return [];
-  };
+  }, []);
 
-  const validateKeys = () => {
+  React.useEffect(() => {
+    setKeyIndexes(parseKeyIndexes(lua));
+    setArgvIndexs(parseArgvIndexes(lua));
+  }, [lua, setKeyIndexes, setArgvIndexs, parseKeyIndexes, parseArgvIndexes]);
+
+  const validateKeys = React.useCallback(() => {
     for (let key of keys) {
       if (!key.value.trim()) return false;
     }
     return true;
-  };
+  }, []);
 
-  const resultOutputsClosed =
-    resultHeight <= DIMENSION_LUAEDITOR_CLOSED_RESULT_SIZE;
+  const resultOutputsClosed = React.useMemo(
+    () => resultHeight <= DIMENSION_LUAEDITOR_CLOSED_RESULT_SIZE,
+    [resultHeight]
+  );
 
-  const createResultOutput = (
-    redisResult: RedisResult,
-    timeElapsed: number
-  ) => {
-    return {
-      serialNumber: outputSerialNumber,
-      success: redisResult.success,
-      message: `${redisResult.success ? redisResult.result : redisResult.error}
+  const createResultOutput = React.useCallback(
+    (redisResult: RedisResult, timeElapsed: number) => {
+      return {
+        serialNumber: outputSerialNumber,
+        success: redisResult.success,
+        message: `${
+          redisResult.success ? redisResult.result : redisResult.error
+        }
 -----------------------------------------------------------------
 ${lua}
 ${JSON.stringify(keys.map((key) => key.value))}
 ${JSON.stringify(argvs.map((argv) => argv.value))}
 ${timeElapsed}ms
 `,
-    };
-  };
+      };
+    },
+    [outputSerialNumber, lua]
+  );
 
-  const handleExecute = async () => {
+  const handleExecute = React.useCallback(async () => {
     if (lua) {
       if (!validateKeys()) {
         showMessage('error', 'Keys should not be empty.');
@@ -264,60 +268,81 @@ ${timeElapsed}ms
         setResultHeight(DIMENSION_LUAEDITOR_OPENED_RESULT_SIZE);
       }
     }
-  };
+  }, [
+    lua,
+    executeLua,
+    keys,
+    argvs,
+    updateResultOutputs,
+    createResultOutput,
+    setResultActiveTab,
+    setOutputSerialNumber,
+    outputSerialNumber,
+    resultOutputsClosed,
+    setResultHeight,
+  ]);
 
-  const handleOpen = async () => {
+  const handleOpen = React.useCallback(async () => {
     const options = {};
     const result = await dialog.showOpenDialog(browserWindow, options);
     const fileContent = fs.readFileSync(result.filePaths[0]);
     if (luaEditorRef.current) {
       luaEditorRef.current.setValue(fileContent.toString());
     }
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const handleSave = React.useCallback(async () => {
     const options = {};
     const result = await dialog.showSaveDialog(browserWindow, options);
     if (result.filePath) {
       fs.writeFileSync(result.filePath, lua);
     }
-  };
-
-  const handleDrawerOpen = () => {
-    setDrawerWidth(DIMENSION_LUAEDITOR_OPENED_DRAWER_WIDTH);
-  };
-
-  const handleDrawerClose = () => {
-    setDrawerWidth(DIMENSION_LUAEDITOR_CLOSED_DRAWER_WIDTH);
-  };
-
-  const handleKeyChange = (index: number, value: string) => {
-    updateKeys((draft) => {
-      const targetKey = draft.find((key) => key.index === index);
-      if (targetKey) {
-        targetKey.value = value;
-      }
-    });
-  };
-
-  const handleArgvChange = (index: number, value: string) => {
-    updateArgvs((draft) => {
-      const targetArgv = draft.find((argv) => argv.index === index);
-      if (targetArgv) {
-        targetArgv.value = value;
-      }
-    });
-  };
-
-  const handleAppLuaExecuteResultClose = React.useCallback((tabId: number) => {
-    updateResultOutputs((draft) => {
-      draft.splice(tabId, 1);
-    });
   }, []);
+
+  const handleDrawerOpen = React.useCallback(() => {
+    setDrawerWidth(DIMENSION_LUAEDITOR_OPENED_DRAWER_WIDTH);
+  }, [setDrawerWidth]);
+
+  const handleDrawerClose = React.useCallback(() => {
+    setDrawerWidth(DIMENSION_LUAEDITOR_CLOSED_DRAWER_WIDTH);
+  }, [setDrawerWidth]);
+
+  const handleKeyChange = React.useCallback(
+    (index: number, value: string) => {
+      updateKeys((draft) => {
+        const targetKey = draft.find((key) => key.index === index);
+        if (targetKey) {
+          targetKey.value = value;
+        }
+      });
+    },
+    [updateKeys]
+  );
+
+  const handleArgvChange = React.useCallback(
+    (index: number, value: string) => {
+      updateArgvs((draft) => {
+        const targetArgv = draft.find((argv) => argv.index === index);
+        if (targetArgv) {
+          targetArgv.value = value;
+        }
+      });
+    },
+    [updateArgvs]
+  );
+
+  const handleAppLuaExecuteResultClose = React.useCallback(
+    (tabId: number) => {
+      updateResultOutputs((draft) => {
+        draft.splice(tabId, 1);
+      });
+    },
+    [updateResultOutputs]
+  );
 
   const onSizeChange = React.useCallback(
     (size: number) => setResultHeight(size),
-    []
+    [setResultHeight]
   );
 
   return (

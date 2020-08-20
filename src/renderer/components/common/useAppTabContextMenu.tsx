@@ -1,13 +1,7 @@
 import React from 'react';
-import Menu from '@material-ui/core/Menu';
-import MenuItem from '@material-ui/core/MenuItem';
+import electron from 'electron';
 import { Tab } from '@src/types';
-
-const initialState = {
-  mouseX: null,
-  mouseY: null,
-  tab: null,
-};
+const { Menu, MenuItem } = electron.remote;
 
 export interface UseAppTabContextMenuProps {
   deleteTab: (tab: Tab) => void;
@@ -16,75 +10,68 @@ export interface UseAppTabContextMenuProps {
 }
 
 export const useAppTabContextMenu = (props: UseAppTabContextMenuProps) => {
-  const [state, setState] = React.useState<{
-    mouseX: null | number;
-    mouseY: null | number;
-    tab: null | Tab;
-  }>(initialState);
-
-  const showMenu = React.useCallback(
-    (tab: Tab) => (event: React.MouseEvent<Element>) => {
-      event.preventDefault();
-      setState({
-        mouseX: event.clientX - 2,
-        mouseY: event.clientY - 4,
-        tab,
-      });
-    },
-    []
-  );
-
-  const handleClose = () => {
-    setState(initialState);
-  };
-
-  const handleDeleteTab = () => {
-    if (state.tab) {
-      deleteTab(state.tab);
-    }
-    handleClose();
-  };
-
-  const handleDeleteOtherTabs = () => {
-    if (state.tab) {
-      deleteOtherTabs(state.tab);
-    }
-    handleClose();
-  };
-
-  const handleDeleteTabsToTheRight = () => {
-    if (state.tab) {
-      deleteTabsToTheRight(state.tab);
-    }
-    handleClose();
-  };
-
   const { deleteTab, deleteOtherTabs, deleteTabsToTheRight } = props;
 
-  const rendererMenu = () => {
-    return (
-      <Menu
-        keepMounted
-        open={state.mouseY !== null}
-        onClose={handleClose}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          state.mouseY !== null && state.mouseX !== null
-            ? { top: state.mouseY, left: state.mouseX }
-            : undefined
-        }
-      >
-        <MenuItem onClick={handleDeleteTab}>Close</MenuItem>
-        <MenuItem onClick={handleDeleteOtherTabs}>Close Other Tabs</MenuItem>
-        <MenuItem onClick={handleDeleteTabsToTheRight}>
-          Close Tabs to the Right
-        </MenuItem>
-      </Menu>
-    );
-  };
+  const handleDeleteTab = React.useCallback(
+    (tab: Tab) => {
+      if (tab) {
+        deleteTab(tab);
+      }
+    },
+    [deleteTab]
+  );
+
+  const handleDeleteOtherTabs = React.useCallback(
+    (tab: Tab) => {
+      if (tab) {
+        deleteOtherTabs(tab);
+      }
+    },
+    [deleteOtherTabs]
+  );
+
+  const handleDeleteTabsToTheRight = React.useCallback(
+    (tab: Tab) => {
+      if (tab) {
+        deleteTabsToTheRight(tab);
+      }
+    },
+    [deleteTabsToTheRight]
+  );
+
+  const showMenu = React.useCallback(
+    (tab: Tab) => (_ev: React.MouseEvent<Element>) => {
+      const menu = new Menu();
+      menu.append(
+        new MenuItem({
+          label: 'Close',
+          click() {
+            handleDeleteTab(tab);
+          },
+        })
+      );
+      menu.append(
+        new MenuItem({
+          label: 'Close Other Tabs',
+          click() {
+            handleDeleteOtherTabs(tab);
+          },
+        })
+      );
+      menu.append(
+        new MenuItem({
+          label: 'Close Tabs to the Right',
+          click() {
+            handleDeleteTabsToTheRight(tab);
+          },
+        })
+      );
+      menu.popup({ window: electron.remote.getCurrentWindow() });
+    },
+    [handleDeleteTab, handleDeleteOtherTabs, handleDeleteTabsToTheRight]
+  );
 
   return {
     showMenu,
-    rendererMenu,
   };
 };

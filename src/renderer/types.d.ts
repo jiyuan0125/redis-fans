@@ -234,7 +234,7 @@ export interface Settings {
 /**
  * 数据对象
  */
-export interface DataObject<T extends ObjectDataType = any> {
+export interface DataObject {
   /**
    * id
    */
@@ -248,7 +248,7 @@ export interface DataObject<T extends ObjectDataType = any> {
   /**
    * 对象类型
    */
-  dataType: T;
+  dataType: ObjectDataType;
 
   /**
    * 过期时间
@@ -256,24 +256,139 @@ export interface DataObject<T extends ObjectDataType = any> {
   expire: number;
 
   /**
-   * 值
-   */
-  value?: T extends 'string'
-    ? string
-    : T extends 'list'
-    ? string[]
-    : T extends 'hash'
-    ? { [key: string]: any }
-    : T extends 'set'
-    ? string[]
-    : T extends 'zset'
-    ? string[]
-    : any;
-
-  /**
    * 在树形里显示时使用
    */
   isOpenByDefault?: boolean;
+}
+
+/**
+ * String对象
+ */
+export interface StringDataObject extends DataObject {
+  /**
+   * 类型
+   */
+  dataType: 'string';
+  /**
+   *
+   */
+  value: string;
+}
+
+/**
+ * List对象
+ */
+export interface ListDataObject extends DataObject {
+  /**
+   * 类型
+   */
+  dataType: 'list';
+  /**
+   * Total number of entris
+   */
+  total: number;
+  /**
+   * lrange开始
+   */
+  lrangeStart: number;
+  /**
+   * lrange结束
+   */
+  lrangeStop: number;
+  /**
+   * 值
+   */
+  values: ListValueType[];
+}
+
+/**
+ * Hash对象
+ */
+export interface HashDataObject extends DataObject {
+  /**
+   * 类型
+   */
+  dataType: 'hash';
+  /**
+   * Match
+   */
+  match: string;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Total number of entris
+   */
+  total: number;
+  /**
+   * 上次的Cursor
+   */
+  lastCursor: number;
+  /**
+   * 值
+   */
+  values: HashValueType[];
+}
+
+/**
+ * Set对象
+ */
+export interface SetDataObject extends DataObject {
+  /**
+   * 类型
+   */
+  dataType: 'set';
+  /**
+   * Match
+   */
+  match: string;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Total number of entris
+   */
+  total: number;
+  /**
+   * 上次的Cursor
+   */
+  lastCursor: number;
+  /**
+   * 值
+   */
+  values: SetValueType[];
+}
+
+/**
+ * Zset对象
+ */
+export interface ZsetDataObject extends DataObject {
+  /**
+   * 类型
+   */
+  dataType: 'zset';
+  /**
+   * Match
+   */
+  match: string;
+  /**
+   * Count
+   */
+  count: number;
+  /**
+   * Total number of entris
+   */
+  total: number;
+  /**
+   * 上次的Cursor
+   */
+  lastCursor: number;
+  /**
+   * 值
+   */
+  values: ZsetValueType[];
 }
 
 /**
@@ -388,4 +503,22 @@ export interface Log {
   connection: string;
   command: string;
   args: any[];
+}
+
+export interface ListValueType {
+  value: string;
+}
+
+export interface SetValueType {
+  value: string;
+}
+
+export interface ZsetValueType {
+  value: string;
+  score: number;
+}
+
+export interface HashValueType {
+  field: string;
+  value: string;
 }

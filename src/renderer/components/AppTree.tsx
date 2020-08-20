@@ -158,71 +158,84 @@ export const AppTree = React.memo((props: AppTreeProps) => {
     [rowStates]
   );
 
-  const handleToggle = (row: RowType, toggle: () => void, isOpen: boolean) => {
-    toggle();
-    updateRowStates((draft) => {
-      draft[row.id] = isOpen;
-    });
-  };
+  const handleToggle = React.useCallback(
+    (row: RowType, toggle: () => void, isOpen: boolean) => {
+      toggle();
+      updateRowStates((draft) => {
+        draft[row.id] = isOpen;
+      });
+    },
+    [updateRowStates]
+  );
 
-  const renderNode = ({ data, isOpen, style, toggle }) => {
-    const { id, isLeaf, name, nestingLevel, childCount } = data;
-    return (
-      <div
-        style={{
-          ...style,
-          alignItems: 'center',
-          display: 'flex',
-          paddingLeft: nestingLevel * 16,
-          boxSizing: 'border-box',
-        }}
-        className={clsx(classes.appTreeText, {
-          [classes.selected]: activeObject && activeObject.id === id,
-        })}
-        onClick={
-          isLeaf
-            ? () => {
-                if (onRowClick) {
-                  onRowClick(data);
+  const renderNode = React.useCallback(
+    ({ data, isOpen, style, toggle }) => {
+      const { id, isLeaf, name, nestingLevel, childCount } = data;
+      return (
+        <div
+          style={{
+            ...style,
+            alignItems: 'center',
+            display: 'flex',
+            paddingLeft: nestingLevel * 16,
+            boxSizing: 'border-box',
+          }}
+          className={clsx(classes.appTreeText, {
+            [classes.selected]: activeObject && activeObject.id === id,
+          })}
+          onClick={
+            isLeaf
+              ? () => {
+                  if (onRowClick) {
+                    onRowClick(data);
+                  }
                 }
-              }
-            : () => handleToggle(data, toggle, !isOpen)
-        }
-        onDoubleClick={
-          isLeaf
-            ? () => {
-                if (onRowDoubleClick) {
-                  onRowDoubleClick(data);
+              : () => handleToggle(data, toggle, !isOpen)
+          }
+          onDoubleClick={
+            isLeaf
+              ? () => {
+                  if (onRowDoubleClick) {
+                    onRowDoubleClick(data);
+                  }
                 }
-              }
-            : () => handleToggle(data, toggle, !isOpen)
-        }
-        onContextMenu={onContextMenu && onContextMenu(data)}
-      >
-        {isLeaf ? (
-          getAvatar && getAvatar(data)
-        ) : (
-          <IconButton
-            onClick={() => handleToggle(data, toggle, !isOpen)}
-            className={classes.appTreeButton}
-          >
-            {isOpen ? <FolderOpenIcon /> : <FolderCloseIcon />}
-          </IconButton>
-        )}
-        {isLeaf ? (
-          <div>
-            <pre className={classes.objectLabel}>{name}</pre>
-          </div>
-        ) : (
-          <div>
-            <pre className={classes.objectLabel}>
-              {name}({childCount})
-            </pre>
-          </div>
-        )}
-      </div>
-    );
-  };
+              : () => handleToggle(data, toggle, !isOpen)
+          }
+          onContextMenu={onContextMenu && onContextMenu(data)}
+        >
+          {isLeaf ? (
+            getAvatar && getAvatar(data)
+          ) : (
+            <IconButton
+              onClick={() => handleToggle(data, toggle, !isOpen)}
+              className={classes.appTreeButton}
+            >
+              {isOpen ? <FolderOpenIcon /> : <FolderCloseIcon />}
+            </IconButton>
+          )}
+          {isLeaf ? (
+            <div>
+              <pre className={classes.objectLabel}>{name}</pre>
+            </div>
+          ) : (
+            <div>
+              <pre className={classes.objectLabel}>
+                {name}({childCount})
+              </pre>
+            </div>
+          )}
+        </div>
+      );
+    },
+    [
+      activeObject,
+      handleToggle,
+      onRowDoubleClick,
+      onContextMenu,
+      getAvatar,
+      handleToggle,
+    ]
+  );
 
   return (
     <div className={clsx(classes.appTreeRoot, props.className)}>

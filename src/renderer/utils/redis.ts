@@ -13,7 +13,6 @@ interface CachedRedisClient {
 }
 
 const cachedRedisClient: CachedRedisClient = {};
-
 export type Execute = typeof execute;
 
 export const execute = async <R = any>(
@@ -65,7 +64,7 @@ export interface CreateClientOptions {
   onReconnecting?: (client: RedisClient) => void;
   onEnd?: (client: RedisClient) => void;
   onWarning?: (client: RedisClient) => void;
-  callback?: (client: RedisClient) => void;
+  //callback?: (client: RedisClient) => void;
 }
 
 export const createClient = (
@@ -127,50 +126,53 @@ export const createClient = (
     }
   }
 
+  const registerListeners = (client: RedisClient | any) => {
+    //if (createClientOptions.callback) {
+    //createClientOptions.callback(client);
+    //}
+
+    client.on('error', (error: Error) => {
+      if (createClientOptions.onError) {
+        createClientOptions.onError(error, client);
+      }
+    });
+
+    client.on('ready', () => {
+      if (createClientOptions.onReady) {
+        createClientOptions.onReady(client);
+      }
+    });
+
+    client.on('connect', () => {
+      if (createClientOptions.onConnect) {
+        createClientOptions.onConnect(client);
+      }
+    });
+
+    client.on('reconnecting', () => {
+      if (createClientOptions.onReconnecting) {
+        createClientOptions.onReconnecting(client);
+      }
+    });
+
+    client.on('end', () => {
+      if (createClientOptions.onEnd) {
+        createClientOptions.onEnd(client);
+      }
+    });
+
+    client.on('warning', () => {
+      if (createClientOptions.onWarning) {
+        createClientOptions.onWarning(client);
+      }
+    });
+  };
+
   const redisClient = Redis.createClient(options);
+  registerListeners(redisClient);
   if (password) {
     redisClient.auth(password);
   }
-
-  if (createClientOptions.callback) {
-    createClientOptions.callback(redisClient);
-  }
-
-  redisClient.on('error', (error: Error) => {
-    if (createClientOptions.onError) {
-      createClientOptions.onError(error, redisClient);
-    }
-  });
-
-  redisClient.on('ready', () => {
-    if (createClientOptions.onReady) {
-      createClientOptions.onReady(redisClient);
-    }
-  });
-
-  redisClient.on('connect', () => {
-    if (createClientOptions.onConnect) {
-      createClientOptions.onConnect(redisClient);
-    }
-  });
-
-  redisClient.on('reconnecting', () => {
-    if (createClientOptions.onReconnecting) {
-      createClientOptions.onReconnecting(redisClient);
-    }
-  });
-
-  redisClient.on('end', () => {
-    if (createClientOptions.onEnd) {
-      createClientOptions.onEnd(redisClient);
-    }
-  });
-
-  redisClient.on('warning', () => {
-    if (createClientOptions.onWarning) {
-      createClientOptions.onWarning(redisClient);
-    }
-  });
 
   const clientPromise: Promise<RedisClient & any> = new Promise<
     RedisClient & any
@@ -184,6 +186,7 @@ export const createClient = (
             Redis.createClient(port, host, { ...options, password }),
         });
         cachedRedisClient[session.id] = redisClustr;
+        registerListeners(redisClustr);
         resolve(redisClustr);
       } else {
         cachedRedisClient[session.id] = redisClient;
@@ -288,4 +291,70 @@ export const verifyConnection = async (connection: Connection) => {
       resolve(false);
     });
   });
+};
+
+export const getTrulyRedisClients = async (session: Session) => {
+  const redisClient = await getRedisClient(session);
+  const trulyRedisClients: (RedisClient & any)[] = [];
+  const isCluster = redisClient instanceof RedisClustr;
+  if (isCluster) {
+    const connections = redisClient.connections;
+    const connKeys = Object.keys(connections);
+    connKeys
+      .filter((c) => {
+        return connections[c].master === true;
+      })
+      .map((c) => connections[c])
+      .forEach((rc) => {
+        trulyRedisClients.push(rc);
+      });
+  } else {
+    trulyRedisClients.push(redisClient);
+  }
+  return trulyRedisClients;
+};
+
+export const cachedScanIterators: {
+  [key: string]: AsyncGenerator;
+} = {};
+
+export const scanGenerator = async function* (
+  session: Session,
+  match: string,
+  count: number
+) {
+  const trulyRedisClients = await getTrulyRedisClients(session);
+  let currentClientIndexInUse = 0;
+  let redisClient = trulyRedisClients[currentClientIndexInUse];
+  let cursor = 0;
+  let result: string[] = [];
+
+  while (true) {
+    const response = await executeByClient(
+      redisClient,
+      'scan',
+      cursor,
+      'match',
+      match,
+      'count',
+      count
+    );
+
+    cursor = parseInt(response[0]);
+    result = result.concat(response[1]);
+    if (cursor === 0) {
+      currentClientIndexInUse++;
+      redisClient = trulyRedisClients[currentClientIndexInUse];
+    }
+
+    if (cursor === 0 && currentClientIndexInUse === trulyRedisClients.length) {
+      return result;
+    } else {
+      if (result.length < count) {
+        continue;
+      }
+      yield result;
+      result = [];
+    }
+  }
 };

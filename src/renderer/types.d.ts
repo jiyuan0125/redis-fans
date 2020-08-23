@@ -491,6 +491,11 @@ export interface Session {
    * 当前选择的 db
    */
   activeDb: string;
+
+  /**
+   * 是否scan完成
+   */
+  scanDone: boolean;
 }
 
 /**

@@ -130,14 +130,17 @@ export const useConn = (props: UseConnProps) => {
           setSessionStatus(session, 'end');
         },
         onWarning: () => {},
-        callback: () => {
-          addSession(session);
-          addSessionTab(session);
-          setActiveSessionId(session.id);
-        },
+        //callback: () => {
+        //addSession(session);
+        //addSessionTab(session);
+        //setActiveSessionId(session.id);
+        //},
       };
 
       createClient(session, createClientOptions);
+      addSession(session);
+      addSessionTab(session);
+      setActiveSessionId(session.id);
     },
     [
       addSession,

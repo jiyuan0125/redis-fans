@@ -8,6 +8,8 @@ import {
   Select,
   MenuItem,
   Tooltip,
+  TextField,
+  Button,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import { AppSearchBar } from '@src/components/AppSearchBar';
@@ -27,13 +29,16 @@ import {
   DIMENSION_APPLEFTSIDEBAR_CLOSED_WIDTH,
   DIMENSION_APPLEFTSIDEBAR_WIDTH_MINSIZE,
   DIMENSION_APPLEFTSIDEBAR_WIDTH_MAXSIZE,
+  DEFAULT_MATCH_STR,
+  DEFAULT_SCAN_COUNT,
 } from '@src/constants';
-import { DataObject, Settings } from '@src/types';
+import { DataObject, Settings, Session } from '@src/types';
 import clsx from 'clsx';
 import ToggleButton from '@material-ui/lab/ToggleButton';
 import { TreeIcon } from '@src/icons/TreeIcon';
 import fs from 'fs';
 import electron from 'electron';
+import { getRedisClient } from '@src/utils/redis';
 const browserWindow = electron.remote.getCurrentWindow();
 const remote = electron.remote;
 const process = electron.remote.process;
@@ -87,6 +92,16 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     appLeftSideBarHeader: {
       display: 'flex',
+      flexFlow: 'column',
+    },
+    appLeftSideScanner: {
+      display: 'flex',
+      alignItems: 'center',
+      paddingLeft: theme.spacing(1),
+      paddingRight: theme.spacing(1),
+    },
+    appLeftSideSearchContainer: {
+      display: 'flex',
       alignItems: 'center',
       paddingLeft: theme.spacing(1),
       paddingRight: theme.spacing(1),
@@ -112,6 +127,12 @@ const useStyles = makeStyles((theme: Theme) =>
       height: 32,
       borderRadius: '50%',
     },
+    pageControlMargin: {
+      marginRight: theme.spacing(1),
+    },
+    pageControlInput: {
+      flex: 1,
+    },
   })
 );
 
@@ -123,7 +144,7 @@ export interface AppLeftSideBarProps {
   setAppAddObjectDialogVisible: (visible: boolean) => void;
   activeDb: string;
   selectDb: (value: string) => void;
-  loadObjects: (clean?: boolean) => void;
+  loadObjects: (clean?: boolean, match?: string, count?: number) => void;
   addTerminalTab: (temporary: boolean) => void;
   addLuaEditorTab: (temporary: boolean) => void;
   serverConfig: Record<string, any>;
@@ -133,6 +154,8 @@ export interface AppLeftSideBarProps {
   advNameSpaceSeparator: string;
   activeObject?: DataObject;
   deleteObject: (object: DataObject) => void;
+  scanDone: boolean;
+  session: Session;
 }
 
 export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
@@ -154,14 +177,27 @@ export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
     advNameSpaceSeparator,
     activeObject,
     deleteObject,
+    scanDone,
+    session,
   } = props;
 
   const [searchKeyword, setSearchKeyword] = React.useState('');
   const [treeShowTypeSelected, setTreeShowTypeSelected] = React.useState(true);
 
   React.useEffect(() => {
-    loadObjects(true);
+    getRedisClient(session).then((redisClient) => {
+      if (redisClient.ready) {
+        loadObjects(true, DEFAULT_MATCH_STR, DEFAULT_SCAN_COUNT);
+      } else {
+        redisClient.on('ready', () => {
+          loadObjects(true, DEFAULT_MATCH_STR, DEFAULT_SCAN_COUNT);
+        });
+      }
+    });
   }, [activeDb]);
+
+  const [match, setMatch] = React.useState(DEFAULT_MATCH_STR);
+  const [count, setCount] = React.useState(DEFAULT_SCAN_COUNT);
 
   const classes = useStyles(props);
 
@@ -198,7 +234,7 @@ export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
   }, [setAppAddObjectDialogVisible]);
 
   const handleRefresh = React.useCallback(() => {
-    loadObjects();
+    loadObjects(true, match, count);
     setLeftSideBarVisible(true);
   }, [loadObjects, setLeftSideBarVisible]);
 
@@ -216,6 +252,14 @@ export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
   const dbs = React.useMemo(() => _.range(parseInt(serverConfig.databases)), [
     serverConfig.databases,
   ]);
+
+  const handleLoadObjects = () => {
+    loadObjects(true, match, count);
+  };
+
+  const handleLoadNextObjects = () => {
+    loadObjects(true);
+  };
 
   return (
     <Drawer
@@ -270,41 +314,94 @@ export const AppLeftSideBar = React.memo((props: AppLeftSideBarProps) => {
         {leftSideBarVisible && (
           <>
             <div className={classes.appLeftSideBarHeader}>
-              <Tooltip title="Tree / Flat">
-                <ToggleButton
-                  value="check"
-                  selected={treeShowTypeSelected}
-                  className={classes.btnShowType}
-                  onChange={() => {
-                    setTreeShowTypeSelected(!treeShowTypeSelected);
+              <div className={classes.appLeftSideScanner}>
+                <TextField
+                  label="Match"
+                  variant="outlined"
+                  value={match}
+                  onChange={(
+                    ev: React.ChangeEvent<
+                      HTMLTextAreaElement | HTMLInputElement
+                    >
+                  ) => setMatch(ev.target.value)}
+                  InputLabelProps={{
+                    shrink: true,
                   }}
+                  className={clsx(
+                    classes.pageControlMargin,
+                    classes.pageControlInput
+                  )}
+                />
+                <TextField
+                  label="Count"
+                  variant="outlined"
+                  value={count}
+                  type="number"
+                  onChange={(
+                    ev: React.ChangeEvent<
+                      HTMLTextAreaElement | HTMLInputElement
+                    >
+                  ) => setCount(parseInt(ev.target.value))}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  className={clsx(
+                    classes.pageControlMargin,
+                    classes.pageControlInput
+                  )}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleLoadObjects}
+                  className={classes.pageControlMargin}
                 >
-                  <TreeIcon />
-                </ToggleButton>
-              </Tooltip>
-              <AppSearchBar
-                searchKeyword={searchKeyword}
-                setSearchKeyword={setSearchKeyword}
-                className={classes.appLeftSideBarSearchBar}
-              />
-              <FormControl
-                variant="outlined"
-                className={classes.appLeftSideBarDbSelector}
-              >
-                <InputLabel>DB</InputLabel>
-                <Select
-                  fullWidth
-                  label="DB"
-                  value={activeDb}
-                  onChange={(ev) => handleChangeDb(ev)}
+                  Scan
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleLoadNextObjects}
+                  disabled={scanDone}
                 >
-                  {dbs.map((db) => (
-                    <MenuItem key={db} value={db}>
-                      {db}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  <span>Next</span>
+                </Button>
+              </div>
+              <div className={classes.appLeftSideSearchContainer}>
+                <Tooltip title="Tree / Flat">
+                  <ToggleButton
+                    value="check"
+                    selected={treeShowTypeSelected}
+                    className={classes.btnShowType}
+                    onChange={() => {
+                      setTreeShowTypeSelected(!treeShowTypeSelected);
+                    }}
+                  >
+                    <TreeIcon />
+                  </ToggleButton>
+                </Tooltip>
+                <AppSearchBar
+                  searchKeyword={searchKeyword}
+                  setSearchKeyword={setSearchKeyword}
+                  className={classes.appLeftSideBarSearchBar}
+                />
+                <FormControl
+                  variant="outlined"
+                  className={classes.appLeftSideBarDbSelector}
+                >
+                  <InputLabel>DB</InputLabel>
+                  <Select
+                    fullWidth
+                    label="DB"
+                    value={activeDb}
+                    onChange={(ev) => handleChangeDb(ev)}
+                  >
+                    {dbs.map((db) => (
+                      <MenuItem key={db} value={db}>
+                        {db}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </div>
             </div>
             <AppObjectList
               searchKeyword={searchKeyword}

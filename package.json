@@ -1,7 +1,7 @@
 {
   "name": "redis-fans",
   "description": "A Redis GUI client, build on Electron & React & Material UI.",
-  "version": "0.1.1-preview",
+  "version": "0.1.2-preview",
   "main": "main.bundle.js",
   "repository": "git@gitee.com:jiyuan0125/redis-fans.git",
   "author": "Su Jiyuan <jiyuan0125@126.com>",

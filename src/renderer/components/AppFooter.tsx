@@ -47,11 +47,11 @@ export interface AppFooterProps {
 export const AppFooter = React.memo((_props: AppFooterProps) => {
   const classes = useStyles();
 
-  const handleFeedbackClick = () => {
+  const handleFeedbackClick = React.useCallback(() => {
     electron.shell.openExternal(
       'https://github.com/jiyuan0125/redis-fans/issues'
     );
-  };
+  }, []);
 
   return (
     <AppBar position="static" color="default" className={classes.appFooterRoot}>

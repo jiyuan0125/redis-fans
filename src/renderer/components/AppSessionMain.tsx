@@ -21,6 +21,8 @@ import {
   DIMENSION_APPLEFTSIDEBAR_WIDTH,
   DIMENSION_APPLEFTSIDEBAR_CLOSED_WIDTH,
   REACTDND_ITEMTYPE_TAB,
+  DEFAULT_MATCH_STR,
+  DEFAULT_SCAN_COUNT,
 } from '@src/constants';
 import { AppTabPanel } from './common/AppTabPane';
 import { AppTabs } from './common/AppTabs';
@@ -32,6 +34,7 @@ import { useRedis } from '@src/hooks/useRedis';
 import { UseSessionHook } from '@src/hooks/useSession';
 import { UnknownIcon } from '@src/icons/UnknownIcon';
 import { AppSessionFooter } from './AppSessionFooter';
+import { getRedisClient } from '@src/utils/redis';
 
 const useStyles = makeStyles((theme: Theme) => ({
   appSessionContentContent: {
@@ -100,8 +103,8 @@ export const AppSessionMain = React.memo(
       setActiveTabId,
       tabs,
       getObjectByTab,
-      loadServerInfo,
-      loadServerConfig,
+      //loadServerInfo,
+      //loadServerConfig,
       executeLua,
       loadObject,
       activeDb,
@@ -116,7 +119,7 @@ export const AppSessionMain = React.memo(
       renameObjectKey,
       expireObject,
       deleteObject,
-      updateObjectValue,
+      updateStringValue,
       addHashField,
       updateHashField,
       updateHashValue,
@@ -133,27 +136,36 @@ export const AppSessionMain = React.memo(
       swapTab,
       activeObject,
       updateTabTemporary,
-      //updateObjectOpenness,
+      fetchListValues,
+      fetchHashValues,
+      fetchSetValues,
+      fetchZsetValues,
     } = useService({ session, useRedisHook, useSessionHook, useGlobalHook });
-    const { showMenu, rendererMenu } = useAppTabContextMenu({
+    const { showMenu } = useAppTabContextMenu({
       deleteTab,
       deleteOtherTabs,
       deleteTabsToTheRight,
     });
     const classes = useStyles();
 
-    React.useEffect(() => {
-      loadServerInfo();
-      loadServerConfig();
-    }, []);
+    //React.useEffect(() => {
+    //loadServerInfo();
+    //loadServerConfig();
+    //}, []);
 
-    const handleTabChange = (_ev: React.ChangeEvent<{}>, tabId: string) => {
-      setActiveTabId(tabId);
-    };
+    const handleTabChange = React.useCallback(
+      (_ev: React.ChangeEvent<{}>, tabId: string) => {
+        setActiveTabId(tabId);
+      },
+      [setActiveTabId]
+    );
 
-    const handleTabClose = (_ev: React.MouseEvent, tab: Tab) => {
-      deleteTab(tab);
-    };
+    const handleTabClose = React.useCallback(
+      (_ev: React.MouseEvent, tab: Tab) => {
+        deleteTab(tab);
+      },
+      [deleteTab]
+    );
 
     const renderPanel = (session: Session, tab: Tab) => {
       switch (tab.type) {
@@ -166,7 +178,7 @@ export const AppSessionMain = React.memo(
               renameObjectKey={renameObjectKey}
               expireObject={expireObject}
               deleteObject={deleteObject}
-              updateObjectValue={updateObjectValue}
+              updateStringValue={updateStringValue}
               addHashField={addHashField}
               updateHashField={updateHashField}
               updateHashValue={updateHashValue}
@@ -182,6 +194,10 @@ export const AppSessionMain = React.memo(
               deleteZsetValue={deleteZsetValue}
               appSettings={appSettings}
               showMessage={showMessage}
+              fetchListValues={fetchListValues}
+              fetchHashValues={fetchHashValues}
+              fetchSetValues={fetchSetValues}
+              fetchZsetValues={fetchZsetValues}
             />
           );
         case 'terminal':
@@ -321,6 +337,8 @@ export const AppSessionMain = React.memo(
           advNameSpaceSeparator={session.connection.advNameSpaceSeparator}
           activeObject={activeObject}
           deleteObject={deleteObject}
+          scanDone={session.scanDone}
+          session={session}
         />
         <div
           className={classes.appSessionContentContent}
@@ -354,7 +372,6 @@ export const AppSessionMain = React.memo(
                 />
               ))}
             </AppTabs>
-            {rendererMenu()}
           </AppBar>
           {session.tabs.map((tab) => (
             <AppTabPanel key={tab.id} value={tab.id} activeValue={activeTabId}>

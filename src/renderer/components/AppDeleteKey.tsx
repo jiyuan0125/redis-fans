@@ -29,14 +29,14 @@ export const AppDeleteKey = React.memo((props: AppRenameProps) => {
   const { deleteDialogVisible, setDeleteDialogVisible, deleteObject } = props;
   const classes = useStyles();
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setDeleteDialogVisible(false);
-  };
+  }, [setDeleteDialogVisible]);
 
-  const handleSubmit = () => {
+  const handleSubmit = React.useCallback(() => {
     deleteObject(props.object);
     handleClose();
-  };
+  }, [deleteObject, handleClose]);
 
   return (
     <div className={classes.appRenameRoot}>

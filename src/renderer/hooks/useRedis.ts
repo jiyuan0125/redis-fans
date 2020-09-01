@@ -2,14 +2,19 @@ import React from 'react';
 import {
   execute,
   parseInfo,
-  getRedisClient,
-  executeByClient,
+  scanGenerator,
+  cachedScanIterators,
 } from '@src/utils/redis';
-import { DataObject, Session, ObjectDataType } from '@src/types';
+import { DataObject, Session } from '@src/types';
 import { UseGlobalHook } from '@src/hooks/useGlobal';
-import { LIST_TO_DELTE_VALUE } from '@src/constants';
+import {
+  LIST_TO_DELTE_VALUE,
+  DEFAULT_ZSCAN_COUNT,
+  DEFAULT_HSCAN_COUNT,
+  DEFAULT_LRANGE_COUNT,
+  DEFAULT_SSCAN_COUNT,
+} from '@src/constants';
 import { UseSessionHook } from './useSession';
-import { RedisClient } from 'redis';
 
 export interface RedisResult {
   success: boolean;
@@ -33,7 +38,8 @@ export interface UseRedisHook {
     numsOfKey: number,
     ...keyOrArgvs: any[]
   ) => Promise<RedisResult>;
-  redisLoadObjects: () => Promise<RedisResult>;
+  //redisLoadObjects: (scanContext?: ScanContext) => Promise<RedisResult>;
+  redisLoadObjects: (match?: string, count?: number) => Promise<RedisResult>;
   redisLoadServerConfig: () => Promise<RedisResult>;
   redisRenameObject: (oldKey: string, newKey: string) => Promise<RedisResult>;
   redisLoadServerInfo: () => Promise<RedisResult>;
@@ -101,6 +107,29 @@ export interface UseRedisHook {
   ) => Promise<RedisResult>;
   redisDeleteZsetValue: (key: string, value: string) => Promise<RedisResult>;
   redisSelectDb: (db: string) => Promise<RedisResult>;
+  redisFetchListValues: (
+    key: string,
+    start: number,
+    stop: number
+  ) => Promise<RedisResult>;
+  redisFetchHashValues: (
+    key: string,
+    lastCursor: number,
+    match: string,
+    count: number
+  ) => Promise<RedisResult>;
+  redisFetchSetValues: (
+    key: string,
+    lastCursor: number,
+    match: string,
+    count: number
+  ) => Promise<RedisResult>;
+  redisFetchZsetValues: (
+    key: string,
+    lastCursor: number,
+    match: string,
+    count: number
+  ) => Promise<RedisResult>;
 }
 
 export interface UseRedisProps {
@@ -144,60 +173,29 @@ export const useRedis = (props: UseRedisProps) => {
   /**
    * 加载keys 信息
    */
-  const redisLoadObjects = React.useCallback(async () => {
-    const doLoad = async (
-      redisClient: RedisClient,
-      result: string[] = [],
-      nextCursor = 0,
-      count = 1000
-    ) => {
-      let response = await executeByClient(
-        redisClient,
-        'scan',
-        nextCursor,
-        'count',
-        count
-      );
-
-      if (response && response[1]) {
-        for (const key of response[1]) {
-          result.push(key);
-        }
-      }
-
-      if (response && parseInt(response[0]) !== 0) {
-        return await doLoad(redisClient, result, response[0], count);
+  const redisLoadObjects = React.useCallback(
+    async (matchParam?: string, countParam?: number) => {
+      let scanIterator: any;
+      if (matchParam !== undefined && countParam !== undefined) {
+        scanIterator = cachedScanIterators[session.id] = scanGenerator(
+          session,
+          matchParam,
+          countParam
+        );
       } else {
-        return result;
+        scanIterator = cachedScanIterators[session.id];
       }
-    };
 
-    const redisClient = await getRedisClient(session);
-    try {
-      setProgressing(session, true);
-      const infoClusterResponse = await execute(session, 'info', 'cluster');
-      const infoCluster = parseInfo(infoClusterResponse);
-      const isCluster = infoCluster['Cluster']['cluster_enabled'] === '1';
-      if (isCluster) {
-        const connections = redisClient.connections;
-        const connKeys = Object.keys(connections);
-        const masterClients = connKeys
-          .filter((c) => {
-            return connections[c].master === true;
-          })
-          .map((c) => connections[c]);
-
-        const results = await Promise.all(masterClients.map((c) => doLoad(c)));
-        return success(results.reduce((a, b) => a.concat(b), []));
-      } else {
-        return success(await doLoad(await getRedisClient(session)));
+      try {
+        return success(await scanIterator.next());
+      } catch (ex) {
+        return error(ex);
+      } finally {
+        setProgressing(session, false);
       }
-    } catch (ex) {
-      return error(ex);
-    } finally {
-      setProgressing(session, false);
-    }
-  }, [setProgressing, redisLog, redisExecuteLua]);
+    },
+    [setProgressing, redisLog, redisExecuteLua]
+  );
 
   /**
    * 加载 Redis 配置信息
@@ -255,36 +253,111 @@ export const useRedis = (props: UseRedisProps) => {
    */
   const redisLoadObjectDetail = React.useCallback(
     async (object: DataObject) => {
-      const type = await execute(session, 'type', object.key);
-      const getValueCommand = (dataType: ObjectDataType, key: string) => {
-        switch (dataType) {
+      try {
+        setProgressing(session, true);
+        redisLog(connection.name, 'type', object.key);
+        const type = await execute(session, 'type', object.key);
+        redisLog(connection.name, 'ttl', object.key);
+        const expire = await execute(session, 'ttl', object.key);
+        let value: any = {};
+        switch (type) {
           case 'string':
-            redisLog(connection.name, 'get', key);
-            return execute(session, 'get', key);
-          case 'hash':
-            redisLog(connection.name, 'hgetall', key);
-            return execute(session, 'hgetall', key);
+            redisLog(connection.name, 'get', object.key);
+            value = await execute(session, 'get', object.key);
+            break;
           case 'list':
-            redisLog(connection.name, 'lrange', key, 0, -1);
-            return execute(session, 'lrange', key, 0, -1);
+            redisLog(connection.name, 'llen', object.key);
+            value.total = await execute(session, 'llen', object.key);
+            redisLog(
+              connection.name,
+              'lrange',
+              object.key,
+              0,
+              DEFAULT_LRANGE_COUNT
+            );
+            value.result = await execute(
+              session,
+              'lrange',
+              object.key,
+              0,
+              DEFAULT_LRANGE_COUNT
+            );
+            break;
+          case 'hash':
+            redisLog(connection.name, 'hlen', object.key);
+            value.total = await execute(session, 'hlen', object.key);
+            redisLog(
+              connection.name,
+              'hscan',
+              object.key,
+              0,
+              'match',
+              '*',
+              'count',
+              DEFAULT_HSCAN_COUNT
+            );
+            value.result = await execute(
+              session,
+              'hscan',
+              object.key,
+              0,
+              'match',
+              '*',
+              'count',
+              DEFAULT_HSCAN_COUNT
+            );
+            break;
           case 'set':
-            redisLog(connection.name, 'smembers', key);
-            return execute(session, 'smembers', key);
+            redisLog(connection.name, 'scard', object.key);
+            value.total = await execute(session, 'scard', object.key);
+            redisLog(
+              connection.name,
+              'sscan',
+              object.key,
+              0,
+              'match',
+              '*',
+              'count',
+              DEFAULT_SSCAN_COUNT
+            );
+            value.result = await execute(
+              session,
+              'sscan',
+              object.key,
+              0,
+              'match',
+              '*',
+              'count',
+              DEFAULT_SSCAN_COUNT
+            );
+            break;
           case 'zset':
-            redisLog(connection.name, 'zrange', key, 0, -1, 'withscores');
-            return execute(session, 'zrange', key, 0, -1, 'withscores');
-
+            redisLog(connection.name, 'zcard', object.key);
+            value.total = await execute(session, 'zcard', object.key);
+            redisLog(
+              connection.name,
+              'zscan',
+              object.key,
+              0,
+              'match',
+              '*',
+              'count',
+              DEFAULT_ZSCAN_COUNT
+            );
+            value.result = await execute(
+              session,
+              'zscan',
+              object.key,
+              0,
+              'match',
+              '*',
+              'count',
+              DEFAULT_ZSCAN_COUNT
+            );
+            break;
           default:
             throw new Error('No matched data type');
         }
-      };
-      try {
-        setProgressing(session, true);
-        redisLog(connection.name, 'ttl', object.key);
-        const [value, expire] = await Promise.all<any, number>([
-          getValueCommand(type, object.key),
-          execute(session, 'ttl', object.key),
-        ]);
         return success({ type, value, expire });
       } catch (ex) {
         return error(ex);
@@ -733,6 +806,132 @@ export const useRedis = (props: UseRedisProps) => {
     [setProgressing, redisLog]
   );
 
+  const redisFetchListValues = React.useCallback(
+    async (key: string, start: number, stop: number) => {
+      try {
+        setProgressing(session, true);
+        redisLog(connection.name, 'llen', key);
+        const total = await execute(session, 'llen', key);
+        redisLog(connection.name, 'lrange', key, start, stop);
+        const result = await execute(session, 'lrange', key, start, stop);
+        return success({ total, result });
+      } catch (ex) {
+        return error(ex);
+      } finally {
+        setProgressing(session, false);
+      }
+    },
+    [setProgressing, redisLog]
+  );
+
+  const redisFetchHashValues = React.useCallback(
+    async (key: string, lastCursor: number, match: string, count: number) => {
+      try {
+        setProgressing(session, true);
+        redisLog(connection.name, 'hlen', key);
+        const total = await execute(session, 'hlen', key);
+        redisLog(
+          connection.name,
+          'hscan',
+          key,
+          lastCursor,
+          'match',
+          match,
+          'count',
+          count
+        );
+        const result = await execute(
+          session,
+          'hscan',
+          key,
+          lastCursor,
+          'match',
+          match,
+          'count',
+          count
+        );
+        return success({ total, result });
+      } catch (ex) {
+        return error(ex);
+      } finally {
+        setProgressing(session, false);
+      }
+    },
+    [setProgressing, redisLog]
+  );
+
+  const redisFetchSetValues = React.useCallback(
+    async (key: string, lastCursor: number, match: string, count: number) => {
+      try {
+        setProgressing(session, true);
+        redisLog(connection.name, 'scard', key);
+        const total = await execute(session, 'scard', key);
+        redisLog(
+          connection.name,
+          'sscan',
+          key,
+          lastCursor,
+          'match',
+          match,
+          'count',
+          count
+        );
+        const result = await execute(
+          session,
+          'sscan',
+          key,
+          lastCursor,
+          'match',
+          match,
+          'count',
+          count
+        );
+        return success({ total, result });
+      } catch (ex) {
+        return error(ex);
+      } finally {
+        setProgressing(session, false);
+      }
+    },
+    [setProgressing, redisLog]
+  );
+
+  const redisFetchZsetValues = React.useCallback(
+    async (key: string, lastCursor: number, match: string, count: number) => {
+      try {
+        setProgressing(session, true);
+        redisLog(connection.name, 'zcard', key);
+        const total = await execute(session, 'zcard', key);
+        redisLog(
+          connection.name,
+          'zscan',
+          key,
+          lastCursor,
+          'match',
+          match,
+          'count',
+          count
+        );
+        const result = await execute(
+          session,
+          'zscan',
+          key,
+          lastCursor,
+          'match',
+          match,
+          'count',
+          count
+        );
+        return success({ total, result });
+      } catch (ex) {
+        return error(ex);
+      } finally {
+        setProgressing(session, false);
+      }
+    },
+    [setProgressing, redisLog]
+  );
+
   return {
     redisLoadObjects,
     redisRenameObject,
@@ -762,5 +961,9 @@ export const useRedis = (props: UseRedisProps) => {
     redisDeleteZsetValue,
     redisSelectDb,
     redisExecuteLua,
+    redisFetchListValues,
+    redisFetchHashValues,
+    redisFetchSetValues,
+    redisFetchZsetValues,
   };
 };

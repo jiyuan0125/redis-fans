@@ -33,22 +33,27 @@ export const AppExpireKey = React.memo((props: AppExpireKeyProps) => {
   const classes = useStyles();
   const [expire, setExpire] = React.useState<string>('-1');
 
+  const { object } = props;
+
   React.useEffect(() => {
-    setExpire(props.object.expire ? props.object.expire.toString() : '-1');
+    setExpire(object.expire ? object.expire.toString() : '-1');
   }, []);
 
-  const handleChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
-    setExpire(ev.target.value);
-  };
+  const handleChange = React.useCallback(
+    (ev: React.ChangeEvent<HTMLInputElement>) => {
+      setExpire(ev.target.value);
+    },
+    [setExpire]
+  );
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setTtlDialogVisible(false);
-  };
+  }, [setTtlDialogVisible]);
 
-  const handleSubmit = () => {
-    expireObject(props.object, parseInt(expire));
+  const handleSubmit = React.useCallback(() => {
+    expireObject(object, parseInt(expire));
     handleClose();
-  };
+  }, [expireObject, object, handleClose]);
 
   return (
     <div className={classes.appExpireKeyRoot}>

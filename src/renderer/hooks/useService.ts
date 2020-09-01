@@ -2,11 +2,33 @@ import React from 'react';
 import { UseSessionHook } from '@src/hooks/useSession';
 import { v4 as uuidv4 } from 'uuid';
 import { UseGlobalHook } from '@src/hooks/useGlobal';
-import { DataObject, ObjectDataType, Session, Tab, TabType } from '@src/types';
+import {
+  DataObject,
+  ObjectDataType,
+  Session,
+  Tab,
+  TabType,
+  HashDataObject,
+  StringDataObject,
+  ZsetDataObject,
+  ListDataObject,
+  SetDataObject,
+  HashValueType,
+  ZsetValueType,
+  SetValueType,
+  ListValueType,
+} from '@src/types';
 import { RedisResult, UseRedisHook } from '@src/hooks/useRedis';
 import _ from 'lodash';
+import {
+  DEFAULT_LRANGE_COUNT,
+  DEFAULT_MATCH_STR,
+  DEFAULT_HSCAN_COUNT,
+  DEFAULT_SSCAN_COUNT,
+  DEFAULT_ZSCAN_COUNT,
+} from '@src/constants';
 
-export interface UseService {
+export interface UseServiceHook {
   getTabByObject: (object: DataObject) => void;
   setActiveTabId: (tabId: string) => void;
   addTab: (
@@ -33,42 +55,73 @@ export interface UseService {
   }) => void;
   loadServerInfo: () => void;
   loadServerConfig: () => void;
-  loadObjects: () => void;
+  loadObjects: (clean?: boolean, match?: string, count?: number) => void;
   deleteObject: (object: DataObject) => void;
   renameObjectKey: (object: DataObject, newKey: string) => void;
   expireObject: (object: DataObject, expire: number) => void;
-  updateObjectValue: (object: DataObject, value: string) => void;
+  updateStringValue: (object: StringDataObject, value: string) => void;
   loadObject: (object: DataObject) => void;
-  addHashField: (object: DataObject, field: string, value: string) => void;
+  addHashField: (object: HashDataObject, field: string, value: string) => void;
   updateHashField: (
-    object: DataObject,
+    object: HashDataObject,
     oldField: string,
     newField: string,
     value: string
   ) => void;
-  updateHashValue: (object: DataObject, field: string, value: string) => void;
-  deleteHashField: (object: DataObject, field: string) => void;
-  addListValue: (object: DataObject, value: string) => void;
-  updateListValue: (object: DataObject, index: number, value: string) => void;
-  deleteListValue: (object: DataObject, index: number) => void;
-  addSetValue: (object: DataObject, value: string) => void;
+  updateHashValue: (
+    object: HashDataObject,
+    field: string,
+    value: string
+  ) => void;
+  deleteHashField: (object: HashDataObject, field: string) => void;
+  addListValue: (object: ListDataObject, value: string) => void;
+  updateListValue: (
+    object: ListDataObject,
+    index: number,
+    value: string
+  ) => void;
+  deleteListValue: (object: ListDataObject, index: number) => void;
+  addSetValue: (object: SetDataObject, value: string) => void;
   updateSetValue: (
-    object: DataObject,
+    object: SetDataObject,
     oldValue: string,
     newValue: string
   ) => void;
-  deleteSetValue: (object: DataObject, value: string) => void;
-  addZsetValue: (object: DataObject, score: number, value: string) => void;
+  deleteSetValue: (object: SetDataObject, value: string) => void;
+  addZsetValue: (object: ZsetDataObject, score: number, value: string) => void;
   updateZsetValue: (
-    object: DataObject,
+    object: ZsetDataObject,
     oldValue: string,
     score: number,
     newValue: string
   ) => void;
-  deleteZsetValue: (object: DataObject, value: string) => void;
+  deleteZsetValue: (object: ZsetDataObject, value: string) => void;
   selectDb: (value: string) => void;
   executeLua: (lua: string, numsOfKey: number, ...keyOrArgvs: any[]) => void;
   swapTab: (sourceIndex: number, targetIndex: number) => void;
+  fetchListValues: (
+    object: ListDataObject,
+    start: number,
+    stop: number
+  ) => void;
+  fetchHashValues: (
+    object: HashDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
+  fetchSetValues: (
+    object: SetDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
+  fetchZsetValues: (
+    object: ZsetDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
 }
 
 export interface UseServiceProps {
@@ -116,6 +169,10 @@ export const useService = (props: UseServiceProps) => {
     redisDeleteZsetValue,
     redisSelectDb,
     redisExecuteLua,
+    redisFetchListValues,
+    redisFetchHashValues,
+    redisFetchSetValues,
+    redisFetchZsetValues,
   } = useRedis;
 
   /**
@@ -230,28 +287,28 @@ export const useService = (props: UseServiceProps) => {
             }
             break;
           case 'terminal':
-            if (existsTemporaryTab) {
-              existsTemporaryTab.id = newTab.id;
-              existsTemporaryTab.type = newTab.type;
-              existsTemporaryTab.name = newTab.name;
-              existsTemporaryTab.temporary = newTab.temporary;
-              targetSession.activeTabId = existsTemporaryTab.id;
-            } else {
-              targetSession.tabs.push(newTab);
-              targetSession.activeTabId = id;
-            }
+            //if (existsTemporaryTab) {
+            //existsTemporaryTab.id = newTab.id;
+            //existsTemporaryTab.type = newTab.type;
+            //existsTemporaryTab.name = newTab.name;
+            //existsTemporaryTab.temporary = newTab.temporary;
+            //targetSession.activeTabId = existsTemporaryTab.id;
+            //} else {
+            targetSession.tabs.push(newTab);
+            targetSession.activeTabId = id;
+            //}
             break;
           case 'luaEditor':
-            if (existsTemporaryTab) {
-              existsTemporaryTab.id = newTab.id;
-              existsTemporaryTab.type = newTab.type;
-              existsTemporaryTab.name = newTab.name;
-              existsTemporaryTab.temporary = newTab.temporary;
-              targetSession.activeTabId = existsTemporaryTab.id;
-            } else {
-              targetSession.tabs.push(newTab);
-              targetSession.activeTabId = id;
-            }
+            //if (existsTemporaryTab) {
+            //existsTemporaryTab.id = newTab.id;
+            //existsTemporaryTab.type = newTab.type;
+            //existsTemporaryTab.name = newTab.name;
+            //existsTemporaryTab.temporary = newTab.temporary;
+            //targetSession.activeTabId = existsTemporaryTab.id;
+            //} else {
+            targetSession.tabs.push(newTab);
+            targetSession.activeTabId = id;
+            //}
             break;
           default:
             throw new Error(`Unsupported type: ${type}.`);
@@ -296,7 +353,7 @@ export const useService = (props: UseServiceProps) => {
         }
       });
     },
-    [activeTab]
+    [activeTabId, activeTab, activeTabIndex]
   );
 
   /**
@@ -448,7 +505,7 @@ export const useService = (props: UseServiceProps) => {
           redisResult = await redisCreateListObject(params.key, params.value);
           break;
         case 'set':
-          redisResult = await redisCreateSetObject(params.key, params.value);
+          await redisCreateSetObject(params.key, params.value);
           break;
         case 'zset':
           redisResult = await redisCreateZsetObject(
@@ -462,9 +519,7 @@ export const useService = (props: UseServiceProps) => {
           break;
       }
       if (redisResult?.success) {
-        //showMessage('error', 'create object error');
-        //} else {
-        // await loadObjects();
+        // Ignore
       }
     },
     [
@@ -512,13 +567,19 @@ export const useService = (props: UseServiceProps) => {
    * 加载 object 列表
    */
   const loadObjects = React.useCallback(
-    async (clean = false) => {
-      const redisResult = await redisLoadObjects();
-      if (redisResult.success) {
-        const keys = redisResult.result as string[];
+    async (clean = false, match?: string, count?: number) => {
+      const redisResult = await redisLoadObjects(match, count);
+      if (redisResult && redisResult.success) {
+        const { value: keys, done } = redisResult.result as {
+          value: string[];
+          done: boolean;
+        };
+
         updateSessionState((draft) => {
           const targetSession = draft.sessions.find((s) => s.id === session.id);
           if (!targetSession) return;
+
+          targetSession.scanDone = done;
           if (clean) {
             targetSession.tabs = [];
             targetSession.objects = [];
@@ -543,14 +604,16 @@ export const useService = (props: UseServiceProps) => {
           });
         });
 
-        // 刷新所有打开的object
-        const objectTabs = tabs.filter((tab) => tab.type === 'object');
-        await Promise.all(
-          objectTabs.map((tab) => {
-            const object = getObjectByTab(tab);
-            return loadObject(object!);
-          })
-        );
+        if (!clean) {
+          // 刷新所有打开的object
+          const objectTabs = tabs.filter((tab) => tab.type === 'object');
+          await Promise.all(
+            objectTabs.map((tab) => {
+              const object = getObjectByTab(tab);
+              return loadObject(object!);
+            })
+          );
+        }
 
         //showMessage('success', 'objects loaded');
       }
@@ -627,16 +690,18 @@ export const useService = (props: UseServiceProps) => {
   );
 
   /**
-   * 更新 object value
+   * 更新 string value
    */
-  const updateObjectValue = React.useCallback(
-    async (object: DataObject, value: string) => {
+  const updateStringValue = React.useCallback(
+    async (object: StringDataObject, value: string) => {
       const redisResult = await redisUpdateObjectValue(object.key, value);
       if (redisResult.success) {
         updateSessionState((draft) => {
           const targetSession = draft.sessions.find((s) => s.id === session.id);
           if (!targetSession) return;
-          targetSession.objects.find((o) => o.id === object.id)!.value = value;
+          (targetSession.objects.find(
+            (o) => o.id === object.id
+          )! as StringDataObject).value = value;
         });
 
         showMessage('success', 'Updated successfully.');
@@ -659,14 +724,82 @@ export const useService = (props: UseServiceProps) => {
           const targetObject = targetSession.objects.find(
             (o) => o.id === object.id
           );
-          if (type !== undefined) {
-            targetObject!.dataType = type;
-          }
-          if (value !== undefined) {
-            targetObject!.value = value;
-          }
           if (expire !== undefined) {
             targetObject!.expire = expire;
+          }
+          if (type !== undefined) {
+            targetObject!.dataType = type;
+            switch (type) {
+              case 'string':
+                (targetObject as StringDataObject).value = value;
+                break;
+              case 'list':
+                (targetObject as ListDataObject).total = value.total;
+                (targetObject as ListDataObject).lrangeStart = 0;
+                (targetObject as ListDataObject).lrangeStop =
+                  DEFAULT_LRANGE_COUNT - 1;
+                const listEntries = [] as ListValueType[];
+                for (let i = 0; i < value.result.length; i++) {
+                  const entry = {
+                    value: value.result[i],
+                  };
+                  listEntries.push(entry);
+                }
+                (targetObject as ListDataObject).values = listEntries;
+                break;
+              case 'hash':
+                (targetObject as HashDataObject).total = value.total;
+                (targetObject as HashDataObject).match = DEFAULT_MATCH_STR;
+                (targetObject as HashDataObject).count = DEFAULT_HSCAN_COUNT;
+                (targetObject as HashDataObject).lastCursor = parseInt(
+                  value.result[0]
+                );
+                const hashEntries = [] as HashValueType[];
+                for (let i = 0; i < value.result[1].length; i += 2) {
+                  const entry = {
+                    field: value.result[1][i],
+                    value: value.result[1][i + 1],
+                  };
+                  hashEntries.push(entry);
+                }
+                (targetObject as HashDataObject).values = hashEntries;
+                break;
+              case 'set':
+                (targetObject as SetDataObject).total = value.total;
+                (targetObject as SetDataObject).match = DEFAULT_MATCH_STR;
+                (targetObject as SetDataObject).count = DEFAULT_SSCAN_COUNT;
+                (targetObject as SetDataObject).lastCursor = parseInt(
+                  value.result[0]
+                );
+                const setEntries = [] as SetValueType[];
+                for (let i = 0; i < value.result[1].length; i++) {
+                  const entry = {
+                    value: value.result[1][i],
+                  };
+                  setEntries.push(entry);
+                }
+                (targetObject as SetDataObject).values = setEntries;
+                break;
+              case 'zset':
+                (targetObject as ZsetDataObject).total = value.total;
+                (targetObject as ZsetDataObject).match = DEFAULT_MATCH_STR;
+                (targetObject as ZsetDataObject).count = DEFAULT_ZSCAN_COUNT;
+                (targetObject as ZsetDataObject).lastCursor = parseInt(
+                  value.result[0]
+                );
+                const zsetEntries = [] as ZsetValueType[];
+                for (let i = 0; i < value.result[1].length; i += 2) {
+                  const entry = {
+                    value: value.result[1][i] as string,
+                    score: parseInt(value.result[1][i + 1]),
+                  };
+                  zsetEntries.push(entry);
+                }
+                (targetObject as ZsetDataObject).values = zsetEntries;
+                break;
+              default:
+              // Ignore
+            }
           }
         });
 
@@ -680,7 +813,7 @@ export const useService = (props: UseServiceProps) => {
    * 添加 hash field
    */
   const addHashField = React.useCallback(
-    async (object: DataObject, field: string, value: string) => {
+    async (object: HashDataObject, field: string, value: string) => {
       const redisResult = await redisAddHashField(object.key, field, value);
       if (redisResult.success) {
         loadObject(object);
@@ -694,7 +827,7 @@ export const useService = (props: UseServiceProps) => {
    */
   const updateHashField = React.useCallback(
     async (
-      object: DataObject,
+      object: HashDataObject,
       oldField: string,
       newField: string,
       value: string
@@ -707,6 +840,7 @@ export const useService = (props: UseServiceProps) => {
       );
       if (redisResult.success) {
         loadObject(object);
+        showMessage('success', 'Updated successfully.');
       }
     },
     [redisUpdateHashField, loadObject]
@@ -716,10 +850,11 @@ export const useService = (props: UseServiceProps) => {
    * 更新 hash value
    */
   const updateHashValue = React.useCallback(
-    async (object: DataObject, field: string, value: string) => {
+    async (object: HashDataObject, field: string, value: string) => {
       const redisResult = await redisUpdateHashValue(object.key, field, value);
       if (redisResult.success) {
         loadObject(object);
+        showMessage('success', 'Updated successfully.');
       }
     },
     [redisUpdateHashField, loadObject]
@@ -729,8 +864,8 @@ export const useService = (props: UseServiceProps) => {
    * 删除 hash field
    */
   const deleteHashField = React.useCallback(
-    async (object: DataObject, field: string) => {
-      const fieldCount = Object.keys(object.value).length;
+    async (object: HashDataObject, field: string) => {
+      const fieldCount = Object.keys(object.values).length;
       const redisResult = await redisDeleteHashField(object.key, field);
       if (fieldCount <= 1) {
         const tab = getTabByObject(object);
@@ -752,7 +887,7 @@ export const useService = (props: UseServiceProps) => {
    * 添加 list value
    */
   const addListValue = React.useCallback(
-    async (object: DataObject, value: string) => {
+    async (object: ListDataObject, value: string) => {
       const redisResult = await redisAddListValue(object.key, value);
       if (redisResult.success) {
         loadObject(object);
@@ -765,10 +900,11 @@ export const useService = (props: UseServiceProps) => {
    * 更新 list value
    */
   const updateListValue = React.useCallback(
-    async (object: DataObject, index: number, value: string) => {
+    async (object: ListDataObject, index: number, value: string) => {
       const redisResult = await redisUpdateListValue(object.key, index, value);
-      if (!redisResult.success) {
+      if (redisResult.success) {
         loadObject(object);
+        showMessage('success', 'Updated successfully.');
       }
     },
     []
@@ -778,8 +914,8 @@ export const useService = (props: UseServiceProps) => {
    * 删除 list value
    */
   const deleteListValue = React.useCallback(
-    async (object: DataObject, index: number) => {
-      const valueCount = object.value.length;
+    async (object: ListDataObject, index: number) => {
+      const valueCount = object.values.length;
       const redisResult = await redisDeleteListValue(object.key, index);
       if (valueCount <= 1) {
         const tab = getTabByObject(object);
@@ -801,7 +937,7 @@ export const useService = (props: UseServiceProps) => {
    * 添加 set value
    */
   const addSetValue = React.useCallback(
-    async (object: DataObject, value: string) => {
+    async (object: SetDataObject, value: string) => {
       const redisResult = await redisAddSetValue(object.key, value);
       if (redisResult.success) {
         loadObject(object);
@@ -814,7 +950,7 @@ export const useService = (props: UseServiceProps) => {
    * 更新 set value
    */
   const updateSetValue = React.useCallback(
-    async (object: DataObject, oldValue: string, newValue: string) => {
+    async (object: SetDataObject, oldValue: string, newValue: string) => {
       const redisResult = await redisUpdateSetValue(
         object.key,
         oldValue,
@@ -822,6 +958,7 @@ export const useService = (props: UseServiceProps) => {
       );
       if (redisResult.success) {
         loadObject(object);
+        showMessage('success', 'Updated successfully.');
       }
     },
     [redisUpdateSetValue, loadObject]
@@ -831,8 +968,8 @@ export const useService = (props: UseServiceProps) => {
    * 删除 set value
    */
   const deleteSetValue = React.useCallback(
-    async (object: DataObject, value: string) => {
-      const valueCount = object.value.length;
+    async (object: SetDataObject, value: string) => {
+      const valueCount = object.values.length;
       const redisResult = await redisDeleteSetValue(object.key, value);
       if (valueCount <= 1) {
         const tab = getTabByObject(object);
@@ -854,7 +991,7 @@ export const useService = (props: UseServiceProps) => {
    * 添加 zset value
    */
   const addZsetValue = React.useCallback(
-    async (object: DataObject, score: number, value: string) => {
+    async (object: ZsetDataObject, score: number, value: string) => {
       const redisResult = await redisAddZsetValue(object.key, score, value);
       if (redisResult.success) {
         loadObject(object);
@@ -868,7 +1005,7 @@ export const useService = (props: UseServiceProps) => {
    */
   const updateZsetValue = React.useCallback(
     async (
-      object: DataObject,
+      object: ZsetDataObject,
       oldValue: string,
       score: number,
       newValue: string
@@ -881,6 +1018,7 @@ export const useService = (props: UseServiceProps) => {
       );
       if (redisResult.success) {
         loadObject(object);
+        showMessage('success', 'Updated successfully.');
       }
     },
     [redisUpdateZsetValue, loadObject]
@@ -890,10 +1028,10 @@ export const useService = (props: UseServiceProps) => {
    * 删除 set value
    */
   const deleteZsetValue = React.useCallback(
-    async (object: DataObject, value: string) => {
-      const valueCount = object.value.length;
+    async (object: ZsetDataObject, value: string) => {
+      const valueCount = object.values.length;
       const redisResult = await redisDeleteZsetValue(object.key, value);
-      if (valueCount <= 2) {
+      if (valueCount <= 1) {
         const tab = getTabByObject(object);
         if (tab) {
           deleteTab(tab);
@@ -957,23 +1095,161 @@ export const useService = (props: UseServiceProps) => {
     []
   );
 
-  /**
-   * 更新Object 在树状结构里的开闭状态
-   */
-  const updateObjectOpenness = React.useCallback(
-    (object: DataObject, isOpen: boolean) => {
-      updateSessionState((draft) => {
-        const targetSession = draft.sessions.find((s) => s.id === session.id);
-        if (!targetSession) return;
-        const targetObject = targetSession.objects.find(
-          (o) => o.id === object.id
-        );
-        if (targetObject) {
-          targetObject.isOpenByDefault = isOpen;
-        }
-      });
+  const fetchListValues = React.useCallback(
+    async (object: ListDataObject, start: number, stop: number) => {
+      const redisResult = await redisFetchListValues(object.key, start, stop);
+      if (redisResult.success) {
+        updateSessionState((draft) => {
+          const targetSession = draft.sessions.find((s) => s.id === session.id);
+          if (!targetSession) return;
+          const targetObject = targetSession.objects.find(
+            (o) => o.id === object.id
+          );
+          if (targetObject) {
+            (targetObject as ListDataObject).total = redisResult.result.total;
+            (targetObject as ListDataObject).lrangeStart = start;
+            (targetObject as ListDataObject).lrangeStop = stop;
+            const listEntries = [] as ListValueType[];
+            for (let i = 0; i < redisResult.result.result.length; i++) {
+              const entry = {
+                value: redisResult.result.result[i],
+              };
+              listEntries.push(entry);
+            }
+            (targetObject as ListDataObject).values = listEntries;
+          }
+        });
+      }
     },
-    []
+    [redisFetchListValues]
+  );
+
+  const fetchHashValues = React.useCallback(
+    async (
+      object: HashDataObject,
+      cursor: number,
+      match: string,
+      count: number
+    ) => {
+      const redisResult = await redisFetchHashValues(
+        object.key,
+        cursor,
+        match,
+        count
+      );
+      if (redisResult.success) {
+        updateSessionState((draft) => {
+          const targetSession = draft.sessions.find((s) => s.id === session.id);
+          if (!targetSession) return;
+          const targetObject = targetSession.objects.find(
+            (o) => o.id === object.id
+          );
+          if (targetObject) {
+            (targetObject as HashDataObject).total = redisResult.result.total;
+            (targetObject as HashDataObject).match = match;
+            (targetObject as HashDataObject).count = count;
+            (targetObject as HashDataObject).lastCursor = parseInt(
+              redisResult.result.result[0]
+            );
+            const hashEntries = [] as HashValueType[];
+            for (let i = 0; i < redisResult.result.result[1].length; i += 2) {
+              const entry = {
+                field: redisResult.result.result[1][i],
+                value: redisResult.result.result[1][i + 1],
+              };
+              hashEntries.push(entry);
+            }
+            (targetObject as HashDataObject).values = hashEntries;
+          }
+        });
+      }
+    },
+    [redisFetchHashValues]
+  );
+
+  const fetchSetValues = React.useCallback(
+    async (
+      object: SetDataObject,
+      cursor: number,
+      match: string,
+      count: number
+    ) => {
+      const redisResult = await redisFetchSetValues(
+        object.key,
+        cursor,
+        match,
+        count
+      );
+      if (redisResult.success) {
+        updateSessionState((draft) => {
+          const targetSession = draft.sessions.find((s) => s.id === session.id);
+          if (!targetSession) return;
+          const targetObject = targetSession.objects.find(
+            (o) => o.id === object.id
+          );
+          if (targetObject) {
+            (targetObject as SetDataObject).total = redisResult.result.total;
+            (targetObject as SetDataObject).match = match;
+            (targetObject as SetDataObject).count = count;
+            (targetObject as SetDataObject).lastCursor = parseInt(
+              redisResult.result.result[0]
+            );
+            const setEntries = [] as SetValueType[];
+            for (let i = 0; i < redisResult.result.result[1].length; i++) {
+              const entry = {
+                value: redisResult.result.result[1][i],
+              };
+              setEntries.push(entry);
+            }
+            (targetObject as SetDataObject).values = setEntries;
+          }
+        });
+      }
+    },
+    [redisFetchSetValues]
+  );
+
+  const fetchZsetValues = React.useCallback(
+    async (
+      object: ZsetDataObject,
+      cursor: number,
+      match: string,
+      count: number
+    ) => {
+      const redisResult = await redisFetchZsetValues(
+        object.key,
+        cursor,
+        match,
+        count
+      );
+      if (redisResult.success) {
+        updateSessionState((draft) => {
+          const targetSession = draft.sessions.find((s) => s.id === session.id);
+          if (!targetSession) return;
+          const targetObject = targetSession.objects.find(
+            (o) => o.id === object.id
+          );
+          if (targetObject) {
+            (targetObject as ZsetDataObject).total = redisResult.result.total;
+            (targetObject as ZsetDataObject).match = match;
+            (targetObject as ZsetDataObject).count = count;
+            (targetObject as ZsetDataObject).lastCursor = parseInt(
+              redisResult.result.result[0]
+            );
+            const zsetEntries = [] as ZsetValueType[];
+            for (let i = 0; i < redisResult.result.result[1].length; i += 2) {
+              const entry = {
+                value: redisResult.result.result[1][i] as string,
+                score: parseInt(redisResult.result.result[1][i + 1]),
+              };
+              zsetEntries.push(entry);
+            }
+            (targetObject as ZsetDataObject).values = zsetEntries;
+          }
+        });
+      }
+    },
+    [redisFetchZsetValues]
   );
 
   return {
@@ -1005,7 +1281,7 @@ export const useService = (props: UseServiceProps) => {
     deleteObject,
     renameObjectKey,
     expireObject,
-    updateObjectValue,
+    updateStringValue,
     loadObject,
     addHashField,
     updateHashField,
@@ -1023,6 +1299,9 @@ export const useService = (props: UseServiceProps) => {
     selectDb,
     executeLua,
     swapTab,
-    updateObjectOpenness,
+    fetchListValues,
+    fetchHashValues,
+    fetchSetValues,
+    fetchZsetValues,
   };
 };

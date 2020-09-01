@@ -2,7 +2,17 @@ import React from 'react';
 import { createStyles, makeStyles } from '@material-ui/core/styles';
 import { AppObjectBasic } from '@src/components/AppObjectBasic';
 import { AppObjectValue } from '@src/components/AppObjectValue';
-import { Tab, DataObject, Settings, MessageType } from '@src/types';
+import {
+  Tab,
+  DataObject,
+  Settings,
+  MessageType,
+  HashDataObject,
+  ZsetDataObject,
+  SetDataObject,
+  ListDataObject,
+  StringDataObject,
+} from '@src/types';
 
 export const useStyles = makeStyles(() =>
   createStyles({
@@ -23,39 +33,70 @@ export interface AppObjectPanelProps {
   renameObjectKey: (object: DataObject, newKey: string) => void;
   expireObject: (object: DataObject, exprie: number) => void;
   deleteObject: (object: DataObject) => void;
-  updateObjectValue: (object: DataObject, value: string) => void;
-  addHashField: (object: DataObject, field: string, value: string) => void;
+  updateStringValue: (object: StringDataObject, value: string) => void;
+  addHashField: (object: HashDataObject, field: string, value: string) => void;
   updateHashField: (
-    object: DataObject,
+    object: HashDataObject,
     oldField: string,
     newField: string,
     value: string
   ) => void;
-  updateHashValue: (object: DataObject, field: string, value: string) => void;
-  deleteHashField: (object: DataObject, field: string) => void;
-  addListValue: (object: DataObject, value: string) => void;
-  updateListValue: (object: DataObject, index: number, value: string) => void;
-  deleteListValue: (object: DataObject, index: number) => void;
-  addSetValue: (object: DataObject, value: string) => void;
+  updateHashValue: (
+    object: HashDataObject,
+    field: string,
+    value: string
+  ) => void;
+  deleteHashField: (object: HashDataObject, field: string) => void;
+  addListValue: (object: ListDataObject, value: string) => void;
+  updateListValue: (
+    object: ListDataObject,
+    index: number,
+    value: string
+  ) => void;
+  deleteListValue: (object: ListDataObject, index: number) => void;
+  addSetValue: (object: SetDataObject, value: string) => void;
   updateSetValue: (
-    object: DataObject,
+    object: SetDataObject,
     oldValue: string,
     newValue: string
   ) => void;
-  deleteSetValue: (object: DataObject, value: string) => void;
-  addZsetValue: (object: DataObject, score: number, value: string) => void;
+  deleteSetValue: (object: SetDataObject, value: string) => void;
+  addZsetValue: (object: ZsetDataObject, score: number, value: string) => void;
   updateZsetValue: (
-    object: DataObject,
+    object: ZsetDataObject,
     oldValue: string,
     score: number,
     newValue: string
   ) => void;
-  deleteZsetValue: (object: DataObject, value: string) => void;
+  deleteZsetValue: (object: ZsetDataObject, value: string) => void;
   appSettings: Settings;
   showMessage: (
     type: MessageType,
     content: string,
     description?: string
+  ) => void;
+  fetchListValues: (
+    object: ListDataObject,
+    start: number,
+    stop: number
+  ) => void;
+  fetchHashValues: (
+    object: HashDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
+  fetchSetValues: (
+    object: SetDataObject,
+    cursor: number,
+    match: string,
+    count: number
+  ) => void;
+  fetchZsetValues: (
+    object: ZsetDataObject,
+    cursor: number,
+    match: string,
+    count: number
   ) => void;
 }
 
@@ -67,7 +108,7 @@ export const AppObjectPanel = React.memo((props: AppObjectPanelProps) => {
     renameObjectKey,
     expireObject,
     deleteObject,
-    updateObjectValue,
+    updateStringValue,
     addHashField,
     updateHashField,
     updateHashValue,
@@ -83,6 +124,10 @@ export const AppObjectPanel = React.memo((props: AppObjectPanelProps) => {
     deleteZsetValue,
     appSettings,
     showMessage,
+    fetchListValues,
+    fetchHashValues,
+    fetchSetValues,
+    fetchZsetValues,
   } = props;
   const classes = useStyles();
   const object = getObjectByTab(tab);
@@ -97,7 +142,7 @@ export const AppObjectPanel = React.memo((props: AppObjectPanelProps) => {
 
   const updateRefreshIndicator = React.useCallback(() => {
     setRefreshIndicator(refreshIndicator + 1);
-  }, [refreshIndicator]);
+  }, [refreshIndicator, setRefreshIndicator]);
 
   return (
     <div className={classes.appObjectPanelRoot}>
@@ -113,7 +158,7 @@ export const AppObjectPanel = React.memo((props: AppObjectPanelProps) => {
       />
       <AppObjectValue
         object={object!}
-        updateObjectValue={updateObjectValue}
+        updateStringValue={updateStringValue}
         addHashField={addHashField}
         updateHashField={updateHashField}
         updateHashValue={updateHashValue}
@@ -130,6 +175,10 @@ export const AppObjectPanel = React.memo((props: AppObjectPanelProps) => {
         appSettings={appSettings}
         refreshIndicator={refreshIndicator}
         showMessage={showMessage}
+        fetchListValues={fetchListValues}
+        fetchHashValues={fetchHashValues}
+        fetchSetValues={fetchSetValues}
+        fetchZsetValues={fetchZsetValues}
       />
     </div>
   );

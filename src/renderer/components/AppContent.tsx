@@ -191,37 +191,40 @@ export const AppContent = React.memo((props: AppContentProps) => {
         };
       }
     });
-  }, [updateSessionState]);
+  }, []);
 
   React.useEffect(() => {
     const appMenu = Menu.buildFromTemplate(menuTemplate);
     Menu.setApplicationMenu(appMenu);
   }, [menuTemplate]);
 
-  const handleConnListClick = () => {
+  const handleConnListClick = React.useCallback(() => {
     setConnListDialogVisible(true);
-  };
+  }, [setConnListDialogVisible]);
 
-  const handleLogClick = () => {
+  const handleLogClick = React.useCallback(() => {
     setAppLogDialogVisible(true);
-  };
+  }, [setAppLogDialogVisible]);
 
-  const handleSettingsClick = () => {
+  const handleSettingsClick = React.useCallback(() => {
     setAppSettingsDialogVisible(true);
-  };
+  }, [setAppSettingsDialogVisible]);
 
-  const handleSessionTabChange = (
-    _ev: React.ChangeEvent<{}>,
-    sessionId: string
-  ) => {
-    setActiveSessionId(sessionId);
-  };
+  const handleSessionTabChange = React.useCallback(
+    (_ev: React.ChangeEvent<{}>, sessionId: string) => {
+      setActiveSessionId(sessionId);
+    },
+    [setActiveSessionId]
+  );
 
-  const handleSessionTabClose = (sessionTabId: string) => {
-    deleteSessionTab(sessionTabId);
-  };
+  const handleSessionTabClose = React.useCallback(
+    (sessionTabId: string) => {
+      deleteSessionTab(sessionTabId);
+    },
+    [deleteSessionTab]
+  );
 
-  const getStatusIconClassName = (session: Session) => {
+  const getStatusIconClassName = React.useCallback((session: Session) => {
     switch (session.status) {
       case 'ready':
         return classes.statusReady;
@@ -238,37 +241,40 @@ export const AppContent = React.memo((props: AppContentProps) => {
       default:
         throw new Error(`Unsupported session status ${session.status}`);
     }
-  };
+  }, []);
 
-  const getLabel = (sessionTab: string) => {
-    const session = getSessionByTabId(sessionTab);
-    if (!session) return sessionTab;
+  const getLabel = React.useCallback(
+    (sessionTab: string) => {
+      const session = getSessionByTabId(sessionTab);
+      if (!session) return sessionTab;
 
-    return (
-      <div className={classes.sessionTabLabel}>
-        {session.progressing && (
-          <CircularProgress size={12} className={classes.progress} />
-        )}
-        <StatusIcon
-          className={clsx('status', getStatusIconClassName(session))}
-        />
-        <span>
-          {session.name}
-          {' » '}
-          <span className={classes.activeDb}>{session.activeDb}</span>
-        </span>
-      </div>
-    );
-  };
+      return (
+        <div className={classes.sessionTabLabel}>
+          {session.progressing && (
+            <CircularProgress size={12} className={classes.progress} />
+          )}
+          <StatusIcon
+            className={clsx('status', getStatusIconClassName(session))}
+          />
+          <span>
+            {session.name}
+            {' » '}
+            <span className={classes.activeDb}>{session.activeDb}</span>
+          </span>
+        </div>
+      );
+    },
+    [getSessionByTabId, getStatusIconClassName]
+  );
 
-  const handleHeaderClick = () => {
+  const handleHeaderClick = React.useCallback(() => {
     const browserWindow = electron.remote.getCurrentWindow();
     if (!browserWindow.isMaximized()) {
       browserWindow.maximize();
     } else {
       browserWindow.unmaximize();
     }
-  };
+  }, []);
 
   return (
     <div

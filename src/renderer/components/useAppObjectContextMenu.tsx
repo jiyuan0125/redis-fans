@@ -25,7 +25,7 @@ export const useAppObjectContextMenu = (
   ] = React.useState(false);
   const [object, setObject] = React.useState<DataObject>();
 
-  const handleCopyKey = (object?: DataObject) => {
+  const handleCopyKey = React.useCallback((object?: DataObject) => {
     //console.log(object);
     const listener = (ev: ClipboardEvent) => {
       ev.preventDefault();
@@ -37,13 +37,16 @@ export const useAppObjectContextMenu = (
     document.addEventListener('copy', listener);
     document.execCommand('copy');
     document.removeEventListener('copy', listener);
-  };
+  }, []);
 
-  const handleDeleteKey = (object?: DataObject) => {
-    if (object) {
-      setDeleteObjectConfirmDialogVisible(true);
-    }
-  };
+  const handleDeleteKey = React.useCallback(
+    (object?: DataObject) => {
+      if (object) {
+        setDeleteObjectConfirmDialogVisible(true);
+      }
+    },
+    [setDeleteObjectConfirmDialogVisible]
+  );
 
   const showMenu = React.useCallback(
     (object: DataObject) => (
@@ -72,19 +75,19 @@ export const useAppObjectContextMenu = (
       );
       menu.popup({ window: electron.remote.getCurrentWindow() });
     },
-    []
+    [setObject, handleCopyKey, handleDeleteKey]
   );
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setDeleteObjectConfirmDialogVisible(false);
-  };
+  }, [setDeleteObjectConfirmDialogVisible]);
 
-  const handleSubmit = () => {
+  const handleSubmit = React.useCallback(() => {
     if (object) {
       deleteObject(object);
     }
     handleClose();
-  };
+  }, [object, deleteObject, handleClose]);
 
   const rendererMenu = () => {
     return (

@@ -99,7 +99,6 @@ export interface AppObjectListProps {
   showType: ObjectListShowType;
   activeObject?: DataObject;
   deleteObject: (object: DataObject) => void;
-  //updateObjectOpenness: (object: DataObject, isOpen: boolean) => void;
 }
 
 export const AppObjectList = React.memo((props: AppObjectListProps) => {
@@ -112,7 +111,6 @@ export const AppObjectList = React.memo((props: AppObjectListProps) => {
     showType,
     activeObject,
     deleteObject,
-    //updateObjectOpenness,
   } = props;
   const { showMenu, rendererMenu } = useAppObjectContextMenu({
     deleteObject,
@@ -220,7 +218,7 @@ export const AppObjectList = React.memo((props: AppObjectListProps) => {
           .sort((a, b) => a.key.localeCompare(b.key))
       );
     }, 500),
-    [objects]
+    [setFilteredObjects, objects, searchKeyword]
   );
 
   React.useEffect(() => doFilter(searchKeyword), [searchKeyword, doFilter]);

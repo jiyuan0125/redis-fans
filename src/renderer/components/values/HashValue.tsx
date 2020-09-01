@@ -198,6 +198,11 @@ export const HashValue = React.memo((props: HashValueProp) => {
       showMessage('error', 'Hash field should not be empty.');
       return;
     }
+    const index = object.values.findIndex((v) => v.field === formData.field);
+    if (index !== -1) {
+      showMessage('error', 'An row with the same field already exists.');
+      return;
+    }
     addHashField(object, formData.field, formData.value);
     updateFormData((draft) => {
       resetFormData(draft, initialFormData);

@@ -28,7 +28,7 @@ import {
   DEFAULT_ZSCAN_COUNT,
 } from '@src/constants';
 
-export interface UseService {
+export interface UseServiceHook {
   getTabByObject: (object: DataObject) => void;
   setActiveTabId: (tabId: string) => void;
   addTab: (
@@ -55,7 +55,7 @@ export interface UseService {
   }) => void;
   loadServerInfo: () => void;
   loadServerConfig: () => void;
-  loadObjects: () => void;
+  loadObjects: (clean?: boolean, match?: string, count?: number) => void;
   deleteObject: (object: DataObject) => void;
   renameObjectKey: (object: DataObject, newKey: string) => void;
   expireObject: (object: DataObject, expire: number) => void;
@@ -567,13 +567,19 @@ export const useService = (props: UseServiceProps) => {
    * 加载 object 列表
    */
   const loadObjects = React.useCallback(
-    async (clean = false) => {
-      const redisResult = await redisLoadObjects();
-      if (redisResult.success) {
-        const keys = redisResult.result as string[];
+    async (clean = false, match?: string, count?: number) => {
+      const redisResult = await redisLoadObjects(match, count);
+      if (redisResult && redisResult.success) {
+        const { value: keys, done } = redisResult.result as {
+          value: string[];
+          done: boolean;
+        };
+
         updateSessionState((draft) => {
           const targetSession = draft.sessions.find((s) => s.id === session.id);
           if (!targetSession) return;
+
+          targetSession.scanDone = done;
           if (clean) {
             targetSession.tabs = [];
             targetSession.objects = [];
@@ -598,14 +604,16 @@ export const useService = (props: UseServiceProps) => {
           });
         });
 
-        // 刷新所有打开的object
-        const objectTabs = tabs.filter((tab) => tab.type === 'object');
-        await Promise.all(
-          objectTabs.map((tab) => {
-            const object = getObjectByTab(tab);
-            return loadObject(object!);
-          })
-        );
+        if (!clean) {
+          // 刷新所有打开的object
+          const objectTabs = tabs.filter((tab) => tab.type === 'object');
+          await Promise.all(
+            objectTabs.map((tab) => {
+              const object = getObjectByTab(tab);
+              return loadObject(object!);
+            })
+          );
+        }
 
         //showMessage('success', 'objects loaded');
       }

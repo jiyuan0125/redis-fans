@@ -17,6 +17,7 @@ export const createSession = (conn: Connection): Session => {
     serverInfo: {},
     serverConfig: {},
     activeDb: '0',
+    scanDone: false,
   };
 };
 

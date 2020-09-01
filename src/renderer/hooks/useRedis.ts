@@ -2,8 +2,8 @@ import React from 'react';
 import {
   execute,
   parseInfo,
-  getRedisClient,
-  executeByClient,
+  scanGenerator,
+  cachedScanIterators,
 } from '@src/utils/redis';
 import { DataObject, Session } from '@src/types';
 import { UseGlobalHook } from '@src/hooks/useGlobal';
@@ -15,7 +15,6 @@ import {
   DEFAULT_SSCAN_COUNT,
 } from '@src/constants';
 import { UseSessionHook } from './useSession';
-import { RedisClient } from 'redis';
 
 export interface RedisResult {
   success: boolean;
@@ -39,7 +38,8 @@ export interface UseRedisHook {
     numsOfKey: number,
     ...keyOrArgvs: any[]
   ) => Promise<RedisResult>;
-  redisLoadObjects: () => Promise<RedisResult>;
+  //redisLoadObjects: (scanContext?: ScanContext) => Promise<RedisResult>;
+  redisLoadObjects: (match?: string, count?: number) => Promise<RedisResult>;
   redisLoadServerConfig: () => Promise<RedisResult>;
   redisRenameObject: (oldKey: string, newKey: string) => Promise<RedisResult>;
   redisLoadServerInfo: () => Promise<RedisResult>;
@@ -173,60 +173,29 @@ export const useRedis = (props: UseRedisProps) => {
   /**
    * 加载keys 信息
    */
-  const redisLoadObjects = React.useCallback(async () => {
-    const doLoad = async (
-      redisClient: RedisClient,
-      result: string[] = [],
-      nextCursor = 0,
-      count = 1000
-    ) => {
-      let response = await executeByClient(
-        redisClient,
-        'scan',
-        nextCursor,
-        'count',
-        count
-      );
-
-      if (response && response[1]) {
-        for (const key of response[1]) {
-          result.push(key);
-        }
-      }
-
-      if (response && parseInt(response[0]) !== 0) {
-        return await doLoad(redisClient, result, response[0], count);
+  const redisLoadObjects = React.useCallback(
+    async (matchParam?: string, countParam?: number) => {
+      let scanIterator: any;
+      if (matchParam !== undefined && countParam !== undefined) {
+        scanIterator = cachedScanIterators[session.id] = scanGenerator(
+          session,
+          matchParam,
+          countParam
+        );
       } else {
-        return result;
+        scanIterator = cachedScanIterators[session.id];
       }
-    };
 
-    const redisClient = await getRedisClient(session);
-    try {
-      setProgressing(session, true);
-      const infoClusterResponse = await execute(session, 'info', 'cluster');
-      const infoCluster = parseInfo(infoClusterResponse);
-      const isCluster = infoCluster['Cluster']['cluster_enabled'] === '1';
-      if (isCluster) {
-        const connections = redisClient.connections;
-        const connKeys = Object.keys(connections);
-        const masterClients = connKeys
-          .filter((c) => {
-            return connections[c].master === true;
-          })
-          .map((c) => connections[c]);
-
-        const results = await Promise.all(masterClients.map((c) => doLoad(c)));
-        return success(results.reduce((a, b) => a.concat(b), []));
-      } else {
-        return success(await doLoad(await getRedisClient(session)));
+      try {
+        return success(await scanIterator.next());
+      } catch (ex) {
+        return error(ex);
+      } finally {
+        setProgressing(session, false);
       }
-    } catch (ex) {
-      return error(ex);
-    } finally {
-      setProgressing(session, false);
-    }
-  }, [setProgressing, redisLog, redisExecuteLua]);
+    },
+    [setProgressing, redisLog, redisExecuteLua]
+  );
 
   /**
    * 加载 Redis 配置信息

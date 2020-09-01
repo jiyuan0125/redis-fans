@@ -21,6 +21,8 @@ import {
   DIMENSION_APPLEFTSIDEBAR_WIDTH,
   DIMENSION_APPLEFTSIDEBAR_CLOSED_WIDTH,
   REACTDND_ITEMTYPE_TAB,
+  DEFAULT_MATCH_STR,
+  DEFAULT_SCAN_COUNT,
 } from '@src/constants';
 import { AppTabPanel } from './common/AppTabPane';
 import { AppTabs } from './common/AppTabs';
@@ -32,6 +34,7 @@ import { useRedis } from '@src/hooks/useRedis';
 import { UseSessionHook } from '@src/hooks/useSession';
 import { UnknownIcon } from '@src/icons/UnknownIcon';
 import { AppSessionFooter } from './AppSessionFooter';
+import { getRedisClient } from '@src/utils/redis';
 
 const useStyles = makeStyles((theme: Theme) => ({
   appSessionContentContent: {
@@ -100,8 +103,8 @@ export const AppSessionMain = React.memo(
       setActiveTabId,
       tabs,
       getObjectByTab,
-      loadServerInfo,
-      loadServerConfig,
+      //loadServerInfo,
+      //loadServerConfig,
       executeLua,
       loadObject,
       activeDb,
@@ -145,10 +148,10 @@ export const AppSessionMain = React.memo(
     });
     const classes = useStyles();
 
-    React.useEffect(() => {
-      loadServerInfo();
-      loadServerConfig();
-    }, []);
+    //React.useEffect(() => {
+    //loadServerInfo();
+    //loadServerConfig();
+    //}, []);
 
     const handleTabChange = React.useCallback(
       (_ev: React.ChangeEvent<{}>, tabId: string) => {
@@ -334,6 +337,8 @@ export const AppSessionMain = React.memo(
           advNameSpaceSeparator={session.connection.advNameSpaceSeparator}
           activeObject={activeObject}
           deleteObject={deleteObject}
+          scanDone={session.scanDone}
+          session={session}
         />
         <div
           className={classes.appSessionContentContent}
